@@ -1,6 +1,6 @@
 {
   "name": "bitpet",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A desktop pet companion for CLI AI tools",
   "scripts": {
     "sync-version": "node scripts/sync-version.js",
