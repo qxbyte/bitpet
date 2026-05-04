@@ -1,7 +1,7 @@
 export type AnimationName =
   | 'idle'
   | 'walk_right' | 'walk_left'
-  | 'hover' | 'launch'
+  | 'hover' | 'launch' | 'exit'
   | 'sleeping' | 'active'
   | 'eating' | 'deep_sleep';
 

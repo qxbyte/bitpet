@@ -5,7 +5,7 @@ import { PixelSprite, AnimationName } from './sprite';
 import { BubbleLayer } from './bubble';
 
 const PHRASES = ['哎！', '嘿～', '别戳了！', '好痒～', '干嘛啦', '(*/ω＼*)', '呦？', '...']
-const LOCKED: AnimationName[] = ['launch', 'eating']
+const LOCKED: AnimationName[] = ['launch', 'exit', 'eating']
 
 async function main() {
   const canvas = document.getElementById('pet-canvas') as HTMLCanvasElement
@@ -18,7 +18,7 @@ async function main() {
   document.getElementById('loading')!.style.display = 'none'
   canvas.style.display = 'block'
 
-  // ── 启动：Row 5 (launch/lightbulb) 播完后回 Row 1 (idle) ──
+  // ── 启动：Row 8 播完后回 Row 1 (idle) ───────────────────
   sprite.setState('launch', true)
   setTimeout(() => {
     if (sprite.getCurrentState() === 'launch') sprite.setState('idle')
@@ -26,7 +26,7 @@ async function main() {
 
   const app = document.getElementById('app')!
 
-  // ── 鼠标悬停：Row 4 (hover) ───────────────────────────────
+  // ── 鼠标悬停：Row 5 (hover) ───────────────────────────────
   app.addEventListener('mouseenter', () => {
     const cur = sprite.getCurrentState()
     if (!LOCKED.includes(cur) && !cur.startsWith('walk')) {
@@ -113,6 +113,7 @@ async function main() {
   })
 
   await listen<string>('bubble:delta', (e) => {
+    if (sprite.getCurrentState() !== 'active') sprite.setState('active')
     bubble.appendDelta(e.payload)
   })
 
@@ -121,13 +122,17 @@ async function main() {
     sprite.setState('idle')
   })
 
-  // 状态衰减 → 饥饿 100% 时 Row 6 (sleeping) / 精力耗尽 Row 9 (deep_sleep)
+  await listen('app:exit', () => {
+    sprite.setState('exit', true)
+  })
+
+  // 状态衰减 → 饥饿超过 50% 时 Row 6 (sleeping) / 精力耗尽 Row 9 (deep_sleep)
   await listen<{ hunger: number; energy: number }>('state:update', (e) => {
     const { hunger, energy } = e.payload
     const cur = sprite.getCurrentState()
     if (LOCKED.includes(cur) || cur === 'active') return
 
-    if (hunger >= 100) {
+    if (hunger > 50) {
       sprite.setState('sleeping')
     } else if (energy <= 20) {
       sprite.setState('deep_sleep')

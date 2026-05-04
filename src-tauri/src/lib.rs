@@ -5,7 +5,7 @@ use socket::{ServerEvent, start_socket_server};
 use state::StateManager;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::time::{Duration, interval};
+use tokio::time::{Duration, interval, sleep};
 
 #[tauri::command]
 fn get_status(state: tauri::State<Arc<StateManager>>) -> serde_json::Value {
@@ -70,6 +70,8 @@ pub fn run() {
                 while let Some(event) = rx.recv().await {
                     match &event {
                         ServerEvent::Stop => {
+                            let _ = app_handle.emit("app:exit", ());
+                            sleep(Duration::from_secs(6)).await;
                             app_handle.exit(0);
                         }
                         ServerEvent::SessionStart { tool, session } => {

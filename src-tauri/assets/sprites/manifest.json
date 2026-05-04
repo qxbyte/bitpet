@@ -18,13 +18,18 @@
       "fps": 1
     },
     "hover": {
-      "start": 18,
-      "end": 23,
+      "start": 24,
+      "end": 29,
       "fps": 1
     },
     "launch": {
-      "start": 24,
-      "end": 29,
+      "start": 42,
+      "end": 47,
+      "fps": 1
+    },
+    "exit": {
+      "start": 18,
+      "end": 23,
       "fps": 1
     },
     "sleeping": {

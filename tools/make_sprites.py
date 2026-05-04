@@ -54,22 +54,22 @@ ROW_REGIONS = [
 #   Row 1 → idle variant (headphones)   → strip 0
 #   Row 2 → drag right                  → strip 1
 #   Row 3 → drag left                   → strip 2
-#   Row 4 → mouse hover                 → strip 3
-#   Row 5 → launch / startup            → strip 4
+#   Row 4 → exit                        → strip 3
+#   Row 5 → mouse hover                 → strip 4
 #   Row 6 → hungry                      → strip 5
 #   Row 7 → active (AI response / code) → strip 6  (laptop)
-#   Row 8 → eating / playing            → strip 7
+#   Row 8 → launch / startup            → strip 7
 #   Row 9 → sleeping (fully flat)       → strip 8
 ANIMATIONS = [
     # name          strip  fps   row in spritesheet (1-indexed)
     ("idle",          0,   1),   # Row 1 — idle
     ("walk_right",    1,   1),   # Row 2 — drag right
     ("walk_left",     2,   1),   # Row 3 — drag left
-    ("hover",         3,   1),   # Row 4 — mouse hover
-    ("launch",        4,   1),   # Row 5 — startup lightbulb
+    ("exit",          3,   1),   # Row 4 — exit
+    ("hover",         4,   1),   # Row 5 — mouse hover
     ("sleeping",      5,   1),   # Row 6 — hungry
     ("active",        6,   1),   # Row 7 — laptop / AI working
-    ("eating",        7,   1),   # Row 8 — crouching / eating
+    ("launch",        7,   1),   # Row 8 — launch / startup
     ("deep_sleep",    8,   1),   # Row 9 — fully flat / deep sleep
 ]
 FRAMES_PER_STRIP = len(COL_REGIONS)  # 6
@@ -112,6 +112,7 @@ def build_manifest(animations: list[tuple]) -> dict:
             "fps":   fps,
         }
         cursor += FRAMES_PER_STRIP
+    manifest["animations"]["eating"] = dict(manifest["animations"]["launch"])
     return manifest
 
 
