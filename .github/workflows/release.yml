@@ -4,7 +4,7 @@ on:
   # Triggered when a release is created via the GitHub UI ("Draft a new release").
   # Builds DMG files and attaches them to that release automatically.
   release:
-    types: [created]
+    types: [created, published]
 
   # Manual fallback: trigger from the Actions tab without creating a release first.
   workflow_dispatch:
@@ -13,6 +13,9 @@ on:
         description: '版本号（如 0.1.1），留空则使用 package.json 版本'
         required: false
         default: ''
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -29,6 +32,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

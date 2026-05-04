@@ -40,6 +40,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.png"
-    ]
+    ],
+    "resources": {
+      "../cli/index.js": "cli/index.js",
+      "../cli/bitpet-hook.js": "cli/bitpet-hook.js",
+      "../cli/hooks-guide.js": "cli/hooks-guide.js"
+    }
   }
 }

@@ -28,13 +28,10 @@
 **安装步骤：**
 
 1. 打开 `.dmg` 文件，将 `BitPet.app` 拖入 `/Applications`
-2. 安装 CLI 工具（用于从终端控制宠物）：
+2. 安装 CLI 工具（仅首次需要）：
 
 ```bash
-# 克隆仓库获取 CLI（或单独下载 cli/ 目录）
-git clone https://github.com/qxbyte/bitpet.git
-cd bitpet/cli
-npm install -g .
+node /Applications/BitPet.app/Contents/Resources/cli/index.js install-cli
 ```
 
 3. 验证安装：
@@ -43,6 +40,8 @@ npm install -g .
 bitpet --version
 # bitpet 0.1.0
 ```
+
+> **后续更新**：下载新版 DMG，拖入 `/Applications` 替换旧版即可，CLI 自动同步更新，无需任何额外操作。
 
 ---
 

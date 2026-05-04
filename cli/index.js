@@ -62,6 +62,68 @@ function isDaemonRunning() {
   })
 }
 
+// ── Install CLI symlinks from .app bundle ─────────────────────
+// After updating BitPet.app, run `bitpet install-cli` to update the
+// CLI in sync — symlinks point inside the bundle so future app updates
+// are automatically picked up with no extra step.
+
+function cmdInstallCli() {
+  // Locate the Resources/cli directory inside the running .app bundle.
+  // __filename when called from inside the bundle:
+  //   /Applications/BitPet.app/Contents/Resources/cli/index.js
+  const bundleCli = path.resolve(__dirname)
+  const bundleIndex    = path.join(bundleCli, 'index.js')
+  const bundleHook     = path.join(bundleCli, 'bitpet-hook.js')
+  const isInsideBundle = bundleCli.includes('.app/Contents/Resources')
+
+  if (!isInsideBundle) {
+    console.log('⚠️  此命令需要从 .app bundle 内运行')
+    console.log('   请先安装 BitPet.app，然后执行：')
+    console.log('   node /Applications/BitPet.app/Contents/Resources/cli/index.js install-cli')
+    return
+  }
+
+  // Try /usr/local/bin first; fall back to ~/.local/bin (no sudo needed).
+  const dirs = ['/usr/local/bin', path.join(os.homedir(), '.local', 'bin')]
+  let binDir = null
+  for (const d of dirs) {
+    try {
+      fs.mkdirSync(d, { recursive: true })
+      fs.accessSync(d, fs.constants.W_OK)
+      binDir = d
+      break
+    } catch { /* not writable */ }
+  }
+
+  if (!binDir) {
+    console.log('❌ 无法写入 /usr/local/bin 或 ~/.local/bin')
+    console.log('   请手动运行：sudo ln -sf ' + bundleIndex + ' /usr/local/bin/bitpet')
+    return
+  }
+
+  const links = [
+    { src: bundleIndex, dst: path.join(binDir, 'bitpet') },
+    { src: bundleHook,  dst: path.join(binDir, 'bitpet-hook') },
+  ]
+
+  for (const { src, dst } of links) {
+    try {
+      if (fs.existsSync(dst)) fs.unlinkSync(dst)
+      fs.symlinkSync(src, dst)
+      console.log(`✅ ${dst} → ${src}`)
+    } catch (e) {
+      console.log(`❌ 创建符号链接失败：${e.message}`)
+    }
+  }
+
+  if (binDir === path.join(os.homedir(), '.local', 'bin')) {
+    console.log('\n提示：~/.local/bin 需要在 PATH 中，将以下行加入 ~/.zshrc 或 ~/.bashrc：')
+    console.log('  export PATH="$HOME/.local/bin:$PATH"')
+  }
+
+  console.log('\n✅ CLI 安装完成，后续更新 BitPet.app 即可自动同步 CLI。')
+}
+
 // ── Install Claude Code slash command ────────────────────────
 
 function installClaudeCommand() {
@@ -290,6 +352,10 @@ async function main() {
       await cmdWithDaemon('stop', () => console.log('👋 BitPet 已关闭'))
       break
 
+    case 'install-cli':
+      cmdInstallCli()
+      break
+
     case 'hooks':
       installClaudeHooks()
       break
@@ -316,6 +382,7 @@ BitPet CLI — 桌面宠物控制工具
   bitpet play                         玩耍
   bitpet status                       查看状态
   bitpet stop                         关闭宠物
+  bitpet install-cli                  从 .app bundle 安装/更新 CLI 符号链接
   bitpet hooks                        重新写入 Claude Code hooks（修复动画不触发问题）
   bitpet setup-hooks --tool <name>    显示 hooks 配置指引（其他工具）
                       claude | codex | opencode
