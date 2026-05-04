@@ -47,9 +47,7 @@
       "../cli/hooks-guide.js": "cli/hooks-guide.js"
     },
     "macOS": {
-      "infoPlist": {
-        "LSUIElement": true
-      }
+      "infoPlist": "./Info.plist"
     }
   }
 }
