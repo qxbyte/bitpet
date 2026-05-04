@@ -55,12 +55,14 @@ async function main() {
   let savePositionTimer = 0
 
   app.addEventListener('mousedown', async (e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
     dragMoved = false
     isDragging = true
     lastX = e.screenX
     lastWindowX = null
     sprite.setState('walk_right', true)
-    await appWin.startDragging()
+    await appWin.startDragging().catch(console.error)
   })
 
   window.addEventListener('mousemove', (e) => {

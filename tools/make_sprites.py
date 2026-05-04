@@ -63,12 +63,12 @@ ROW_REGIONS = [
 ANIMATIONS = [
     # name          strip  fps   row in spritesheet (1-indexed)
     ("idle",          0,   1),   # Row 1 — idle
-    ("walk_right",    1,   1),   # Row 2 — drag right
-    ("walk_left",     2,   1),   # Row 3 — drag left
+    ("walk_right",    1,   8),   # Row 2 — drag right
+    ("walk_left",     2,   8),   # Row 3 — drag left
     ("exit",          3,   1),   # Row 4 — exit
-    ("hover",         4,   1),   # Row 5 — mouse hover
-    ("sleeping",      5,   1),   # Row 6 — hungry
-    ("active",        6,   1),   # Row 7 — laptop / AI working
+    ("hover",         4,   8),   # Row 5 — mouse hover
+    ("sleeping",      5,   8),   # Row 6 — hungry
+    ("active",        6,   8),   # Row 7 — laptop / AI working
     ("launch",        7,   1),   # Row 8 — launch / startup
     ("deep_sleep",    8,   1),   # Row 9 — fully flat / deep sleep
 ]
@@ -90,6 +90,8 @@ def extract_strip(img: Image.Image, strip_idx: int) -> list[Image.Image]:
         y_off = SPRITE_PAD_T + (side - SPRITE_PAD_T - sh) // 2
         square.paste(raw, (x_off, y_off), raw)
         frame = square.resize((FRAME_SIZE, FRAME_SIZE), Image.NEAREST)
+        if frame.getbbox() is None and frames:
+            frame = frames[-1].copy()
         frames.append(frame)
     return frames
 
