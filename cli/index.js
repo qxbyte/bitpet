@@ -369,7 +369,7 @@ async function main() {
 
     case '--version':
     case '-v':
-      console.log('bitpet 0.1.0')
+      console.log(`bitpet ${require('./package.json').version}`)
       break
 
     default:

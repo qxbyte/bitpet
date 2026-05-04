@@ -1,6 +1,6 @@
 {
   "name": "bitpet",
-  "version": "0.1.0",
+  "version": "0.0.4",
   "description": "Desktop pet companion for AI coding tools — lives on your desktop and reacts to Claude Code sessions",
   "main": "index.js",
   "bin": {
@@ -14,8 +14,17 @@
   "engines": {
     "node": ">=18"
   },
-  "os": ["darwin"],
-  "keywords": ["claude-code", "desktop-pet", "tauri", "ai", "codex", "opencode"],
+  "os": [
+    "darwin"
+  ],
+  "keywords": [
+    "claude-code",
+    "desktop-pet",
+    "tauri",
+    "ai",
+    "codex",
+    "opencode"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/qxbyte/bitpet.git"
