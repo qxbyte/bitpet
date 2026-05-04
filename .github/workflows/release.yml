@@ -1,13 +1,16 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  # Triggered when a release is created via the GitHub UI ("Draft a new release").
+  # Builds DMG files and attaches them to that release automatically.
+  release:
+    types: [created]
+
+  # Manual fallback: trigger from the Actions tab without creating a release first.
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（如 0.1.1），留空则使用 package.json 中的版本'
+        description: '版本号（如 0.1.1），留空则使用 package.json 版本'
         required: false
         default: ''
 
@@ -46,26 +49,33 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Resolve tag name
-        id: tag
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VER="${{ github.event.inputs.version }}"
-            if [ -z "$VER" ]; then
-              VER=$(node -p "require('./package.json').version")
-            fi
-            echo "name=v${VER}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build and release
+      # ── Path 1: release event → attach DMG to the release created via GitHub UI ──
+      - name: Build and attach to GitHub release
+        if: github.event_name == 'release'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ steps.tag.outputs.name }}
-          releaseName: 'BitPet ${{ steps.tag.outputs.name }}'
+          releaseId: ${{ github.event.release.id }}
+          args: --target ${{ matrix.target }}
+
+      # ── Path 2: workflow_dispatch → create a new release programmatically ──
+      - name: Resolve version
+        id: ver
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          V="${{ github.event.inputs.version }}"
+          [ -z "$V" ] && V=$(node -p "require('./package.json').version")
+          echo "tag=v${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and create release
+        if: github.event_name == 'workflow_dispatch'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.ver.outputs.tag }}
+          releaseName: 'BitPet ${{ steps.ver.outputs.tag }}'
           releaseBody: |
             ## 下载
 
