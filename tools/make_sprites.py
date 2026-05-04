@@ -52,25 +52,25 @@ ROW_REGIONS = [
 # Row index → 0-based strip index in ROW_REGIONS.
 # User's row assignments (1-indexed):
 #   Row 1 → idle variant (headphones)   → strip 0
-#   Row 2 → idle default                → strip 1
-#   Row 3 → hover / curious             → strip 2
-#   Row 4 → launch / startup            → strip 3  (trophy moment)
-#   Row 5 → poked / click               → strip 4
-#   Row 6 → hungry / tired              → strip 5
+#   Row 2 → drag right                  → strip 1
+#   Row 3 → drag left                   → strip 2
+#   Row 4 → mouse hover                 → strip 3
+#   Row 5 → launch / startup            → strip 4
+#   Row 6 → hungry                      → strip 5
 #   Row 7 → active (AI response / code) → strip 6  (laptop)
 #   Row 8 → eating / playing            → strip 7
 #   Row 9 → sleeping (fully flat)       → strip 8
 ANIMATIONS = [
     # name          strip  fps   row in spritesheet (1-indexed)
-    ("idle",          0,   4),   # Row 1 — headphones idle
-    ("walk_right",    1,  10),   # Row 2 — walk right
-    ("walk_left",     2,  10),   # Row 3 — walk left
-    ("hover",         3,   8),   # Row 4 — mouse-over stretch/wave
-    ("launch",        4,   8),   # Row 5 — startup lightbulb 💡
-    ("sleeping",      5,   3),   # Row 6 — squish to sleep
-    ("active",        6,   8),   # Row 7 — laptop / AI working 💻
-    ("eating",        7,  10),   # Row 8 — crouching / eating
-    ("deep_sleep",    8,   2),   # Row 9 — fully flat / deep sleep
+    ("idle",          0,   1),   # Row 1 — idle
+    ("walk_right",    1,   1),   # Row 2 — drag right
+    ("walk_left",     2,   1),   # Row 3 — drag left
+    ("hover",         3,   1),   # Row 4 — mouse hover
+    ("launch",        4,   1),   # Row 5 — startup lightbulb
+    ("sleeping",      5,   1),   # Row 6 — hungry
+    ("active",        6,   1),   # Row 7 — laptop / AI working
+    ("eating",        7,   1),   # Row 8 — crouching / eating
+    ("deep_sleep",    8,   1),   # Row 9 — fully flat / deep sleep
 ]
 FRAMES_PER_STRIP = len(COL_REGIONS)  # 6
 

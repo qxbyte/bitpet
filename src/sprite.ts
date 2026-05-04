@@ -49,6 +49,7 @@ export class PixelSprite {
     if (immediate) {
       this.current = name;
       this.frame = 0;
+      this.drawCurrentFrame();
     } else {
       this.pending = name;
     }
@@ -74,6 +75,8 @@ export class PixelSprite {
     if (ts - this.lastFrameTime < mspf) return;
     this.lastFrameTime = ts;
 
+    this.draw(anim.start + this.frame);
+
     const totalFrames = anim.end - anim.start + 1;
     this.frame = (this.frame + 1) % totalFrames;
 
@@ -81,8 +84,14 @@ export class PixelSprite {
     if (this.frame === 0 && this.pending !== null) {
       this.current = this.pending;
       this.pending = null;
+      this.drawCurrentFrame();
     }
+  }
 
+  private drawCurrentFrame() {
+    if (!this.manifest) return;
+    const anim = this.manifest.animations[this.current];
+    if (!anim) return;
     this.draw(anim.start + this.frame);
   }
 

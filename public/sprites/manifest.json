@@ -5,47 +5,47 @@
     "idle": {
       "start": 0,
       "end": 5,
-      "fps": 4
+      "fps": 1
     },
     "walk_right": {
       "start": 6,
       "end": 11,
-      "fps": 10
+      "fps": 1
     },
     "walk_left": {
       "start": 12,
       "end": 17,
-      "fps": 10
+      "fps": 1
     },
     "hover": {
       "start": 18,
       "end": 23,
-      "fps": 8
+      "fps": 1
     },
     "launch": {
       "start": 24,
       "end": 29,
-      "fps": 8
+      "fps": 1
     },
     "sleeping": {
       "start": 30,
       "end": 35,
-      "fps": 3
+      "fps": 1
     },
     "active": {
       "start": 36,
       "end": 41,
-      "fps": 8
+      "fps": 1
     },
     "eating": {
       "start": 42,
       "end": 47,
-      "fps": 10
+      "fps": 1
     },
     "deep_sleep": {
       "start": 48,
       "end": 53,
-      "fps": 2
+      "fps": 1
     }
   }
 }

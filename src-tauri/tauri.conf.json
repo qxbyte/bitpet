@@ -1,7 +1,7 @@
 {
   "productName": "BitPet",
   "version": "0.1.0",
-  "identifier": "dev.bitpet.app",
+  "identifier": "dev.bitpet",
   "build": {
     "beforeDevCommand": "npm run vite:dev",
     "beforeBuildCommand": "npm run vite:build",
@@ -34,6 +34,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": []
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.png"
+    ]
   }
 }

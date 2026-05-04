@@ -1,5 +1,6 @@
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { PixelSprite, AnimationName } from './sprite';
 import { BubbleLayer } from './bubble';
 
@@ -17,11 +18,11 @@ async function main() {
   document.getElementById('loading')!.style.display = 'none'
   canvas.style.display = 'block'
 
-  // ── 启动：Row 5 (launch/💡) 播完后回 Row 1 (idle) ────────
+  // ── 启动：Row 5 (launch/lightbulb) 播完后回 Row 1 (idle) ──
   sprite.setState('launch', true)
   setTimeout(() => {
     if (sprite.getCurrentState() === 'launch') sprite.setState('idle')
-  }, 2500)
+  }, 6000)
 
   const app = document.getElementById('app')!
 
@@ -49,9 +50,21 @@ async function main() {
 
   // ── 拖动：向左 Row 3 / 向右 Row 2 ────────────────────────
   let lastX = 0
-  app.addEventListener('mousedown', (e) => { lastX = e.screenX })
+  let lastWindowX: number | null = null
+  let isDragging = false
+  let savePositionTimer = 0
 
-  window.addEventListener('mousemove', async (e) => {
+  app.addEventListener('mousedown', async (e) => {
+    dragMoved = false
+    isDragging = true
+    lastX = e.screenX
+    lastWindowX = null
+    sprite.setState('walk_right', true)
+    await appWin.startDragging()
+  })
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return
     const dx = e.screenX - lastX
     if (Math.abs(dx) < 4) return
     dragMoved = true
@@ -59,16 +72,36 @@ async function main() {
     const dir: AnimationName = dx < 0 ? 'walk_left' : 'walk_right'
     if (sprite.getCurrentState() !== dir) sprite.setState(dir, true)
     lastX = e.screenX
-    await appWin.startDragging()
   })
 
   window.addEventListener('mouseup', () => {
+    isDragging = false
     if (dragMoved) {
       setTimeout(() => {
         const cur = sprite.getCurrentState()
         if (cur === 'walk_left' || cur === 'walk_right') sprite.setState('idle')
       }, 250)
     }
+  })
+
+  await appWin.onMoved(async ({ payload }) => {
+    if (isDragging) {
+      dragMoved = true
+      if (lastWindowX !== null) {
+        const dir: AnimationName = payload.x < lastWindowX ? 'walk_left' : 'walk_right'
+        if (sprite.getCurrentState() !== dir) sprite.setState(dir, true)
+      }
+    }
+    lastWindowX = payload.x
+
+    window.clearTimeout(savePositionTimer)
+    savePositionTimer = window.setTimeout(async () => {
+      const scale = await appWin.scaleFactor()
+      await invoke('update_position', {
+        x: payload.x / scale,
+        y: payload.y / scale,
+      })
+    }, 250)
   })
 
   // ── Tauri 事件 ────────────────────────────────────────────
@@ -88,16 +121,16 @@ async function main() {
     sprite.setState('idle')
   })
 
-  // 状态衰减 → 饥饿时 Row 6 (sleeping) / 精力耗尽 Row 9 (deep_sleep)
+  // 状态衰减 → 饥饿 100% 时 Row 6 (sleeping) / 精力耗尽 Row 9 (deep_sleep)
   await listen<{ hunger: number; energy: number }>('state:update', (e) => {
     const { hunger, energy } = e.payload
     const cur = sprite.getCurrentState()
     if (LOCKED.includes(cur) || cur === 'active') return
 
-    if (energy <= 20) {
-      sprite.setState('deep_sleep')
-    } else if (hunger >= 80) {
+    if (hunger >= 100) {
       sprite.setState('sleeping')
+    } else if (energy <= 20) {
+      sprite.setState('deep_sleep')
     } else if (cur === 'sleeping' || cur === 'deep_sleep') {
       sprite.setState('idle')
     }

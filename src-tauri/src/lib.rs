@@ -13,6 +13,12 @@ fn get_status(state: tauri::State<Arc<StateManager>>) -> serde_json::Value {
     serde_json::to_value(s).unwrap_or_default()
 }
 
+#[tauri::command]
+fn update_position(x: f64, y: f64, state: tauri::State<Arc<StateManager>>) {
+    state.update_position(x, y);
+    state.save();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -101,7 +107,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_status])
+        .invoke_handler(tauri::generate_handler![get_status, update_position])
         .run(tauri::generate_context!())
         .expect("error running BitPet");
 }
