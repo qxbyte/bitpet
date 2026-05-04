@@ -34,14 +34,26 @@ async function main() {
   if (!type || !tool) process.exit(0)
 
   if (type === 'session-start') {
-    const session = rest.join(' ').slice(0, 80) || 'unknown'
+    let session = rest.join(' ').trim().slice(0, 80)
+    if (!session) {
+      // Claude Code passes JSON via stdin for all hook types.
+      // PreToolUse  → { tool_name, tool_input, session_id }
+      // UserPromptSubmit → { prompt, session_id }
+      const raw = await readStdin()
+      try {
+        const obj = JSON.parse(raw.trim())
+        session = obj.tool_name || (obj.session_id ? obj.session_id.slice(0, 8) : '') || 'thinking'
+      } catch {
+        session = 'thinking'
+      }
+    }
     await send({ type: 'session_start', tool, session })
 
   } else if (type === 'message') {
-    let delta = rest.join(' ')
+    let delta = rest.join(' ').trim()
     if (!delta) {
-      // Read from stdin if no arg provided
-      delta = await readStdin()
+      const raw = await readStdin()
+      delta = extractDeltaFromHookJson(raw)
     }
     delta = delta.replace(/\s+/g, ' ').trim().slice(0, MAX_DELTA)
     if (delta) await send({ type: 'message', tool, delta })
@@ -58,10 +70,29 @@ function readStdin() {
     if (process.stdin.isTTY) { resolve(''); return }
     let buf = ''
     process.stdin.setEncoding('utf8')
-    process.stdin.on('data', (d) => { buf += d; if (buf.length > 1000) resolve(buf) })
+    process.stdin.on('data', (d) => { buf += d; if (buf.length > 4000) resolve(buf) })
     process.stdin.on('end', () => resolve(buf))
     setTimeout(() => resolve(buf), 500)
   })
+}
+
+// Extract readable text from the JSON that Claude Code hooks pass via stdin.
+function extractDeltaFromHookJson(raw) {
+  try {
+    const obj = JSON.parse(raw.trim())
+    // PostToolUse: { tool_name, tool_input, tool_response: string | object }
+    if (obj.tool_response !== undefined) {
+      const resp = obj.tool_response
+      if (typeof resp === 'string') return resp
+      if (typeof resp === 'object') {
+        return resp.output || resp.content || resp.result || JSON.stringify(resp)
+      }
+    }
+    // Fallback: stringify the whole object
+    return raw
+  } catch {
+    return raw
+  }
 }
 
 main().catch(() => process.exit(0))

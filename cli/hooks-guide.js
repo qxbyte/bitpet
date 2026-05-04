@@ -12,13 +12,35 @@ const GUIDES = {
 步骤 2 — 添加以下 hooks 配置（合并到现有 "hooks" 字段中）：
 
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bitpet-hook session-start claude-code \\"$CLAUDE_SESSION_ID\\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bitpet-hook session-start claude-code \\"$CLAUDE_TOOL_NAME\\""
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "bitpet-hook message claude-code \\"$CLAUDE_TOOL_RESPONSE\\""
+            "command": "bitpet-hook message claude-code"
           }
         ]
       }
@@ -30,17 +52,6 @@ const GUIDES = {
           {
             "type": "command",
             "command": "bitpet-hook session-end claude-code"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bitpet-hook session-start claude-code \\"$CLAUDE_SESSION_ID\\""
           }
         ]
       }

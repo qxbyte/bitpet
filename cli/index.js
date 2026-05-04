@@ -11,12 +11,22 @@ const { GUIDES } = require('./hooks-guide')
 const SOCKET = path.join(os.tmpdir(), 'bitpet.sock')  // macOS: /var/folders/.../T/bitpet.sock
 const COMMANDS_DIR = path.join(os.homedir(), '.claude', 'commands')
 const CMD_FILE = path.join(COMMANDS_DIR, 'pet.md')
+const CLAUDE_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json')
 
 const PET_CMD_CONTENT = `---
 description: 控制 BitPet 桌面宠物（init/feed/play/status/stop）
 ---
 !bitpet $ARGUMENTS
 `
+
+// Hooks to inject into ~/.claude/settings.json.
+// Each hook reads tool/session info from stdin (Claude Code passes JSON for all hook types).
+const BITPET_HOOK_ENTRIES = [
+  { hookType: 'UserPromptSubmit', command: 'bitpet-hook session-start claude-code' },
+  { hookType: 'PreToolUse',       command: 'bitpet-hook session-start claude-code' },
+  { hookType: 'PostToolUse',      command: 'bitpet-hook message claude-code' },
+  { hookType: 'Stop',             command: 'bitpet-hook session-end claude-code' },
+]
 
 // ── Socket helpers ────────────────────────────────────────────
 
@@ -64,6 +74,57 @@ function installClaudeCommand() {
     }
   } catch {
     // non-fatal
+  }
+}
+
+// ── Auto-inject hooks into ~/.claude/settings.json ───────────
+// Claude Code passes JSON via stdin for every hook type:
+//   UserPromptSubmit → { session_id, prompt }
+//   PreToolUse       → { session_id, tool_name, tool_input }
+//   PostToolUse      → { session_id, tool_name, tool_input, tool_response }
+//   Stop             → { session_id }
+
+function installClaudeHooks() {
+  let settings = {}
+  try {
+    if (fs.existsSync(CLAUDE_SETTINGS)) {
+      settings = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, 'utf8'))
+    }
+  } catch {
+    console.log('  ⚠️  无法解析 ~/.claude/settings.json，请手动运行：bitpet setup-hooks --tool claude')
+    return false
+  }
+
+  if (!settings.hooks) settings.hooks = {}
+
+  const added = []
+  for (const { hookType, command } of BITPET_HOOK_ENTRIES) {
+    if (!settings.hooks[hookType]) settings.hooks[hookType] = []
+    const exists = settings.hooks[hookType].some(group =>
+      group.hooks?.some(h => h.command?.includes('bitpet-hook'))
+    )
+    if (!exists) {
+      settings.hooks[hookType].push({ matcher: '', hooks: [{ type: 'command', command }] })
+      added.push(hookType)
+    }
+  }
+
+  if (added.length === 0) {
+    console.log('✅ Claude Code hooks 已是最新，无需更新')
+    return true
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(CLAUDE_SETTINGS), { recursive: true })
+    fs.writeFileSync(CLAUDE_SETTINGS, JSON.stringify(settings, null, 2) + '\n')
+    console.log(`✅ 已写入 Claude Code hooks：${added.join(', ')}`)
+    console.log(`   文件：${CLAUDE_SETTINGS}`)
+    console.log('   ⚡ 重新打开一个 Claude Code 会话即可生效')
+    return true
+  } catch (e) {
+    console.log(`  ⚠️  写入失败：${e.message}`)
+    console.log('  请手动运行：bitpet setup-hooks --tool claude')
+    return false
   }
 }
 
@@ -166,8 +227,8 @@ async function cmdInit() {
   if (await isDaemonRunning()) {
     console.log('✅ BitPet 已启动！')
     installClaudeCommand()
+    installClaudeHooks()
     console.log('\n提示：在 Claude Code 中用 /pet <命令> 控制宠物')
-    console.log('      运行 bitpet setup-hooks --tool claude 配置 AI 集成')
   } else {
     console.error('❌ 启动超时，请手动运行应用')
     process.exit(1)
@@ -229,6 +290,10 @@ async function main() {
       await cmdWithDaemon('stop', () => console.log('👋 BitPet 已关闭'))
       break
 
+    case 'hooks':
+      installClaudeHooks()
+      break
+
     case 'setup-hooks': {
       const toolFlag = args.indexOf('--tool')
       const tool = toolFlag >= 0 ? args[toolFlag + 1] : args[0]
@@ -246,12 +311,13 @@ async function main() {
 BitPet CLI — 桌面宠物控制工具
 
 用法：
-  bitpet init                         启动宠物（首次使用）
+  bitpet init                         启动宠物（首次使用，自动配置 Claude Code hooks）
   bitpet feed                         喂食
   bitpet play                         玩耍
   bitpet status                       查看状态
   bitpet stop                         关闭宠物
-  bitpet setup-hooks --tool <name>    显示 hooks 配置指引
+  bitpet hooks                        重新写入 Claude Code hooks（修复动画不触发问题）
+  bitpet setup-hooks --tool <name>    显示 hooks 配置指引（其他工具）
                       claude | codex | opencode
 
 在 Claude Code 中使用：
