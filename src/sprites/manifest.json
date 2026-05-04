@@ -22,7 +22,7 @@
       "end": 23,
       "fps": 1
     },
-    "hover": {
+    "thinking": {
       "start": 24,
       "end": 29,
       "fps": 8
@@ -42,15 +42,20 @@
       "end": 47,
       "fps": 1
     },
-    "deep_sleep": {
+    "click": {
       "start": 48,
       "end": 53,
-      "fps": 1
+      "fps": 8
     },
     "eating": {
       "start": 42,
       "end": 47,
       "fps": 1
+    },
+    "deep_sleep": {
+      "start": 48,
+      "end": 53,
+      "fps": 8
     }
   }
 }

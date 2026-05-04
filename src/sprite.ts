@@ -1,9 +1,9 @@
 export type AnimationName =
   | 'idle'
   | 'walk_right' | 'walk_left'
-  | 'hover' | 'launch' | 'exit'
+  | 'thinking' | 'launch' | 'exit'
   | 'sleeping' | 'active'
-  | 'eating' | 'deep_sleep';
+  | 'click' | 'eating' | 'deep_sleep';
 
 interface AnimationDef {
   start: number;

@@ -5,7 +5,7 @@ import { PixelSprite, AnimationName } from './sprite';
 import { BubbleLayer } from './bubble';
 
 const PHRASES = ['哎！', '嘿～', '别戳了！', '好痒～', '干嘛啦', '(*/ω＼*)', '呦？', '...']
-const LOCKED: AnimationName[] = ['launch', 'exit', 'eating']
+const LOCKED: AnimationName[] = ['launch', 'exit', 'thinking', 'active', 'click', 'eating']
 
 async function main() {
   const canvas = document.getElementById('pet-canvas') as HTMLCanvasElement
@@ -26,26 +26,17 @@ async function main() {
 
   const app = document.getElementById('app')!
 
-  // ── 鼠标悬停：Row 5 (hover) ───────────────────────────────
-  app.addEventListener('mouseenter', () => {
-    const cur = sprite.getCurrentState()
-    if (!LOCKED.includes(cur) && !cur.startsWith('walk')) {
-      sprite.setState('hover')
-    }
-  })
-
-  app.addEventListener('mouseleave', () => {
-    setTimeout(() => {
-      if (sprite.getCurrentState() === 'hover') sprite.setState('idle')
-    }, 400)
-  })
-
-  // 点击（非拖动）→ 随机短语
+  // 点击（非拖动）只在 idle 时使用 Row 9，然后回到 Row 1。
   let dragMoved = false
   app.addEventListener('mousedown', () => { dragMoved = false })
   app.addEventListener('click', () => {
     if (dragMoved) return
+    if (sprite.getCurrentState() !== 'idle') return
+    sprite.setState('click', true)
     bubble.showPhrase(PHRASES[Math.floor(Math.random() * PHRASES.length)])
+    setTimeout(() => {
+      if (sprite.getCurrentState() === 'click') sprite.setState('idle', true)
+    }, 750)
   })
 
   // ── 拖动：向左 Row 3 / 向右 Row 2 ────────────────────────
@@ -53,6 +44,15 @@ async function main() {
   let lastWindowX: number | null = null
   let isDragging = false
   let savePositionTimer = 0
+  const finishDrag = () => {
+    isDragging = false
+    if (dragMoved) {
+      setTimeout(() => {
+        const cur = sprite.getCurrentState()
+        if (cur === 'walk_left' || cur === 'walk_right') sprite.setState('idle', true)
+      }, 250)
+    }
+  }
 
   app.addEventListener('mousedown', async (e) => {
     if (e.button !== 0) return
@@ -61,8 +61,10 @@ async function main() {
     isDragging = true
     lastX = e.screenX
     lastWindowX = null
-    sprite.setState('walk_right', true)
-    await appWin.startDragging().catch(console.error)
+    void appWin.startDragging().then(finishDrag).catch((err) => {
+      console.error(err)
+      finishDrag()
+    })
   })
 
   window.addEventListener('mousemove', (e) => {
@@ -77,21 +79,18 @@ async function main() {
   })
 
   window.addEventListener('mouseup', () => {
-    isDragging = false
-    if (dragMoved) {
-      setTimeout(() => {
-        const cur = sprite.getCurrentState()
-        if (cur === 'walk_left' || cur === 'walk_right') sprite.setState('idle')
-      }, 250)
-    }
+    finishDrag()
   })
 
   await appWin.onMoved(async ({ payload }) => {
     if (isDragging) {
       dragMoved = true
       if (lastWindowX !== null) {
-        const dir: AnimationName = payload.x < lastWindowX ? 'walk_left' : 'walk_right'
-        if (sprite.getCurrentState() !== dir) sprite.setState(dir, true)
+        const dx = payload.x - lastWindowX
+        if (Math.abs(dx) >= 1) {
+          const dir: AnimationName = dx < 0 ? 'walk_left' : 'walk_right'
+          if (sprite.getCurrentState() !== dir) sprite.setState(dir, true)
+        }
       }
     }
     lastWindowX = payload.x
@@ -108,12 +107,13 @@ async function main() {
 
   // ── Tauri 事件 ────────────────────────────────────────────
 
-  // AI 开始工作 → Row 7 (active/💻)
+  // 用户回车后模型思考中 → Row 5
   await listen<{ tool: string; session: string }>('bubble:session_start', (e) => {
     bubble.showSession(e.payload.tool, e.payload.session)
-    sprite.setState('active')
+    sprite.setState('thinking')
   })
 
+  // 模型输出回复内容 → Row 7
   await listen<string>('bubble:delta', (e) => {
     if (sprite.getCurrentState() !== 'active') sprite.setState('active')
     bubble.appendDelta(e.payload)
@@ -132,7 +132,7 @@ async function main() {
   await listen<{ hunger: number; energy: number }>('state:update', (e) => {
     const { hunger, energy } = e.payload
     const cur = sprite.getCurrentState()
-    if (LOCKED.includes(cur) || cur === 'active') return
+    if (LOCKED.includes(cur) || cur.startsWith('walk')) return
 
     if (hunger > 50) {
       sprite.setState('sleeping')
