@@ -13,7 +13,7 @@ src-tauri/gen/schemas/
 
 # Local editor and tool state
 .claude/settings.local.json
-specs/**/.config.json
+specs/
 .env
 .env.*
 
