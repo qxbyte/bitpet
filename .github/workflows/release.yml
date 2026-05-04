@@ -1,12 +1,8 @@
 name: Release
 
 on:
-  # Triggered when a release is created via the GitHub UI ("Draft a new release").
-  # Builds DMG files and attaches them to that release automatically.
   release:
     types: [created, published]
-
-  # Manual fallback: trigger from the Actions tab without creating a release first.
   workflow_dispatch:
     inputs:
       version:
@@ -18,6 +14,7 @@ permissions:
   contents: write
 
 jobs:
+  # ── Job 1: Build DMG for each architecture ───────────────────
   build:
     strategy:
       fail-fast: false
@@ -54,7 +51,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      # ── Path 1: release event → attach DMG to the release created via GitHub UI ──
+      # release event → attach DMG to the release created via GitHub UI
       - name: Build and attach to GitHub release
         if: github.event_name == 'release'
         uses: tauri-apps/tauri-action@v0
@@ -64,7 +61,7 @@ jobs:
           releaseId: ${{ github.event.release.id }}
           args: --target ${{ matrix.target }}
 
-      # ── Path 2: workflow_dispatch → create a new release programmatically ──
+      # workflow_dispatch → create a new release programmatically
       - name: Resolve version
         id: ver
         if: github.event_name == 'workflow_dispatch'
@@ -82,23 +79,45 @@ jobs:
           tagName: ${{ steps.ver.outputs.tag }}
           releaseName: 'BitPet ${{ steps.ver.outputs.tag }}'
           releaseBody: |
-            ## 下载
-
-            | 文件 | 适用机型 |
-            |---|---|
-            | `BitPet_*_aarch64.dmg` | Apple Silicon（M1/M2/M3/M4） |
-            | `BitPet_*_x64.dmg` | Intel Mac |
-
-            ## 安装
-
-            1. 下载对应 DMG，打开后将 BitPet.app 拖入 Applications
-            2. 安装 CLI：
+            Install or update via npm:
             ```bash
-            cd bitpet/cli && npm install -g .
-            bitpet init
+            npm install -g bitpet   # first install
+            npm update -g bitpet    # update
             ```
-
-            首次打开若提示"无法验证开发者"：右键 BitPet.app → 打开 → 打开。
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
+
+  # ── Job 2: Publish CLI to npm (runs after all DMGs are uploaded) ──
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Setup Node.js with npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Sync version from tag
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VER="${TAG#v}"
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('cli/package.json'));
+            p.version = '${VER}';
+            fs.writeFileSync('cli/package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+
+      - name: Publish to npm
+        run: npm publish --access public
+        working-directory: cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

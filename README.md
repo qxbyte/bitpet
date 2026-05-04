@@ -16,32 +16,38 @@
 
 ## 安装
 
-### 方式一：使用预构建包（推荐）
+### 方式一：npm（推荐）
 
-从 [Releases](https://github.com/qxbyte/bitpet/releases) 下载最新版本：
+```bash
+npm install -g bitpet
+```
 
-| 文件 | 适用场景 |
+自动完成：下载并安装 `BitPet.app` + 注册 `bitpet` / `bitpet-hook` 命令。
+
+**更新：**
+
+```bash
+npm update -g bitpet
+```
+
+一条命令同步更新 CLI 和桌面应用。
+
+---
+
+### 方式二：手动安装
+
+从 [Releases](https://github.com/qxbyte/bitpet/releases) 下载对应架构的 DMG：
+
+| 文件 | 适用机型 |
 |---|---|
-| `BitPet_x.x.x_aarch64.dmg` | Apple Silicon Mac（M1/M2/M3/M4） |
+| `BitPet_x.x.x_aarch64.dmg` | Apple Silicon（M1/M2/M3/M4） |
 | `BitPet_x.x.x_x64.dmg` | Intel Mac |
 
-**安装步骤：**
-
-1. 打开 `.dmg` 文件，将 `BitPet.app` 拖入 `/Applications`
-2. 安装 CLI 工具（仅首次需要）：
+打开 DMG，将 `BitPet.app` 拖入 `/Applications`，然后安装 CLI：
 
 ```bash
-node /Applications/BitPet.app/Contents/Resources/cli/index.js install-cli
+npm install -g bitpet --ignore-scripts   # 只装 CLI，跳过 app 下载
 ```
-
-3. 验证安装：
-
-```bash
-bitpet --version
-# bitpet 0.1.0
-```
-
-> **后续更新**：下载新版 DMG，拖入 `/Applications` 替换旧版即可，CLI 自动同步更新，无需任何额外操作。
 
 ---
 
