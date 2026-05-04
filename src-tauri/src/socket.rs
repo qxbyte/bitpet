@@ -76,16 +76,10 @@ async fn handle_connection(
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
 
-    let rate_limit = Duration::from_millis(100); // max 10 msgs/sec
-    let mut last_msg = Instant::now() - rate_limit;
+    let rate_limit = Duration::from_millis(100); // max 10 delta msgs/sec
+    let mut last_delta = Instant::now() - rate_limit;
 
     while let Ok(Some(line)) = lines.next_line().await {
-        let now = Instant::now();
-        if now.duration_since(last_msg) < rate_limit {
-            continue; // drop, rate-limited
-        }
-        last_msg = now;
-
         let msg: IncomingMsg = match serde_json::from_str(&line) {
             Ok(m) => m,
             Err(_) => continue,
@@ -97,6 +91,11 @@ async fn handle_connection(
                 let _ = event_tx.send(ServerEvent::SessionStart { tool, session });
             }
             IncomingMsg::Message { tool: _, delta } => {
+                let now = Instant::now();
+                if now.duration_since(last_delta) < rate_limit {
+                    continue;
+                }
+                last_delta = now;
                 let _ = event_tx.send(ServerEvent::MessageDelta { delta });
             }
             IncomingMsg::SessionEnd { tool: _ } => {

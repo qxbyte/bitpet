@@ -120,15 +120,15 @@ async function main() {
 
   // ── Tauri 事件 ────────────────────────────────────────────
 
-  // 用户回车后模型思考中 → Row 5
+  // 用户回车后模型思考中 → Row 5（立即切换，确保思考动画第一时间出现）
   await listen<{ tool: string; session: string }>('bubble:session_start', (e) => {
     bubble.showSession(e.payload.tool, e.payload.session)
-    sprite.setState('thinking')
+    sprite.setState('thinking', true)
   })
 
-  // 模型输出回复内容 → Row 7
+  // 模型输出回复内容 → Row 7（立即切换，从 thinking 过渡到 active）
   await listen<string>('bubble:delta', (e) => {
-    if (sprite.getCurrentState() !== 'active') sprite.setState('active')
+    sprite.setState('active', true)
     bubble.appendDelta(e.payload)
   })
 
@@ -147,10 +147,10 @@ async function main() {
     const cur = sprite.getCurrentState()
     if (LOCKED.includes(cur) || cur.startsWith('walk')) return
 
-    if (hunger > 50) {
-      sprite.setState('sleeping')
-    } else if (energy <= 20) {
+    if (energy <= 20) {
       sprite.setState('deep_sleep')
+    } else if (hunger > 50) {
+      sprite.setState('sleeping')
     } else if (cur === 'sleeping' || cur === 'deep_sleep') {
       sprite.setState('idle')
     }
