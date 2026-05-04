@@ -45,6 +45,11 @@
       "../cli/index.js": "cli/index.js",
       "../cli/bitpet-hook.js": "cli/bitpet-hook.js",
       "../cli/hooks-guide.js": "cli/hooks-guide.js"
+    },
+    "macOS": {
+      "infoPlist": {
+        "LSUIElement": true
+      }
     }
   }
 }
