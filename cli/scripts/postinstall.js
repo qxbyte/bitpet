@@ -104,7 +104,12 @@ async function main() {
       fs.mkdirSync(dir, { recursive: true })
       run('rm', ['-rf', path.join(dir, 'BitPet.app')])
       const res = run('cp', ['-R', appSrc, dir])
-      if (res.status === 0) { installDir = dir; break }
+      if (res.status === 0) {
+        // Remove macOS quarantine attribute — unsigned apps show as "damaged" without this.
+        run('xattr', ['-cr', path.join(dir, 'BitPet.app')])
+        installDir = dir
+        break
+      }
     } catch { /* next */ }
   }
 

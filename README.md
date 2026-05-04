@@ -34,7 +34,7 @@ npm update -g bitpet
 
 ---
 
-### 方式二：手动安装
+### 方式二：手动安装 DMG
 
 从 [Releases](https://github.com/qxbyte/bitpet/releases) 下载对应架构的 DMG：
 
@@ -48,6 +48,14 @@ npm update -g bitpet
 ```bash
 npm install -g bitpet --ignore-scripts   # 只装 CLI，跳过 app 下载
 ```
+
+首次打开若提示"已损坏，无法打开"（Gatekeeper 对未签名 app 的拦截），运行：
+
+```bash
+xattr -cr /Applications/BitPet.app
+```
+
+> **注意**：git clone 只能获取源代码，无法直接安装 app。app 需要通过 DMG 或 `npm install -g bitpet` 安装。开发者可用 `npm run build` 从源码编译。
 
 ---
 
