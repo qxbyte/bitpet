@@ -1,6 +1,6 @@
 {
   "name": "bitpet",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "Desktop pet companion for AI coding tools — lives on your desktop and reacts to Claude Code sessions",
   "main": "index.js",
   "bin": {
