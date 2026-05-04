@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest   # Apple Silicon (M-series)
+            target: aarch64-apple-darwin
+            suffix: aarch64
+          - os: macos-13       # Intel
+            target: x86_64-apple-darwin
+            suffix: x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'BitPet ${{ github.ref_name }}'
+          releaseBody: |
+            ## 下载
+
+            | 文件 | 适用机型 |
+            |---|---|
+            | `BitPet_*_aarch64.dmg` | Apple Silicon (M1/M2/M3/M4) |
+            | `BitPet_*_x64.dmg` | Intel Mac |
+
+            ## 安装
+
+            下载对应 DMG，打开后将 BitPet.app 拖入 Applications。
+
+            首次打开若提示"无法验证开发者"，右键点击 BitPet.app → 打开 → 打开。
+
+            安装 CLI：
+            ```bash
+            cd bitpet/cli && npm install -g .
+            bitpet init
+            ```
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
