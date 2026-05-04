@@ -1,5 +1,5 @@
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { PixelSprite, AnimationName } from './sprite';
 import { BubbleLayer } from './bubble';
@@ -32,6 +32,7 @@ async function main() {
   app.addEventListener('click', () => {
     if (dragMoved) return
     if (sprite.getCurrentState() !== 'idle') return
+    if (sprite.getPendingState() !== null) return
     sprite.setState('click', true)
     bubble.showPhrase(PHRASES[Math.floor(Math.random() * PHRASES.length)])
     setTimeout(() => {
@@ -41,10 +42,15 @@ async function main() {
 
   // ── 拖动：向左 Row 3 / 向右 Row 2 ────────────────────────
   let lastX = 0
+  let lastY = 0
   let lastWindowX: number | null = null
+  let dragStartWindowX = 0
+  let dragStartWindowY = 0
   let isDragging = false
+  let isPointerDown = false
   let savePositionTimer = 0
   const finishDrag = () => {
+    isPointerDown = false
     isDragging = false
     if (dragMoved) {
       setTimeout(() => {
@@ -58,24 +64,31 @@ async function main() {
     if (e.button !== 0) return
     e.preventDefault()
     dragMoved = false
-    isDragging = true
+    isPointerDown = true
+    isDragging = false
     lastX = e.screenX
+    lastY = e.screenY
     lastWindowX = null
-    void appWin.startDragging().then(finishDrag).catch((err) => {
-      console.error(err)
-      finishDrag()
-    })
+    const pos = await appWin.outerPosition()
+    dragStartWindowX = pos.x
+    dragStartWindowY = pos.y
   })
 
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return
+  window.addEventListener('mousemove', async (e) => {
+    if (!isPointerDown) return
     const dx = e.screenX - lastX
-    if (Math.abs(dx) < 4) return
+    const dy = e.screenY - lastY
+    if (!isDragging && Math.hypot(dx, dy) < 6) return
+
+    isDragging = true
     dragMoved = true
 
     const dir: AnimationName = dx < 0 ? 'walk_left' : 'walk_right'
     if (sprite.getCurrentState() !== dir) sprite.setState(dir, true)
-    lastX = e.screenX
+    await appWin.setPosition(new PhysicalPosition(
+      dragStartWindowX + Math.round(dx),
+      dragStartWindowY + Math.round(dy),
+    ))
   })
 
   window.addEventListener('mouseup', () => {

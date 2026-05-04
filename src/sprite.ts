@@ -47,6 +47,7 @@ export class PixelSprite {
   setState(name: AnimationName, immediate = false) {
     if (this.current === name) return;
     if (immediate) {
+      this.pending = null;
       this.current = name;
       this.frame = 0;
       this.drawCurrentFrame();
@@ -57,6 +58,10 @@ export class PixelSprite {
 
   getCurrentState(): AnimationName {
     return this.current;
+  }
+
+  getPendingState(): AnimationName | null {
+    return this.pending;
   }
 
   private start() {
