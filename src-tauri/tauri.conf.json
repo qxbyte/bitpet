@@ -1,0 +1,39 @@
+{
+  "productName": "BitPet",
+  "version": "0.1.0",
+  "identifier": "dev.bitpet.app",
+  "build": {
+    "beforeDevCommand": "npm run vite:dev",
+    "beforeBuildCommand": "npm run vite:build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "BitPet",
+        "label": "main",
+        "width": 110,
+        "height": 150,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": false,
+        "shadow": false,
+        "visible": true,
+        "focus": true,
+        "backgroundColor": "#00000000"
+      }
+    ],
+    "macOSPrivateApi": true,
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": []
+  }
+}
