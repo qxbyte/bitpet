@@ -9,7 +9,7 @@ dist/
 # Rust/Tauri build output
 target/
 src-tauri/target/
-src-tauri/gen/schemas/
+src-tauri/gen/
 
 # Local editor and tool state
 .claude/settings.local.json
