@@ -93,15 +93,18 @@ pub fn run() {
                         ServerEvent::StateUpdate(s) => {
                             let _ = app_handle.emit("state:update", s);
                         }
+                        ServerEvent::PlayAction => {
+                            let _ = app_handle.emit("pet:play", ());
+                        }
                     }
                 }
             });
 
-            // Decay timer: fires every 30 minutes.
+            // Decay timer: fires every 6 minutes → hunger +10/tick = 100% in 1 hour.
             let state_decay = Arc::clone(&state);
             let app_for_decay: AppHandle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let mut ticker = interval(Duration::from_secs(30 * 60));
+                let mut ticker = interval(Duration::from_secs(6 * 60));
                 ticker.tick().await; // skip first immediate tick
                 loop {
                     ticker.tick().await;

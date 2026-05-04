@@ -141,7 +141,15 @@ async function main() {
     sprite.setState('exit', true)
   })
 
-  // 状态衰减 → 饥饿超过 50% 时 Row 6 (sleeping) / 精力耗尽 Row 9 (deep_sleep)
+  // 玩耍动画 → Row 9 (eating) 播放 2 秒后回到 idle
+  await listen('pet:play', () => {
+    sprite.setState('eating', true)
+    setTimeout(() => {
+      if (sprite.getCurrentState() === 'eating') sprite.setState('idle', true)
+    }, 2000)
+  })
+
+  // 状态衰减 → 饥饿达到 100% 时 Row 6 (sleeping) / 精力耗尽时 Row 9 (deep_sleep)
   await listen<{ hunger: number; energy: number }>('state:update', (e) => {
     const { hunger, energy } = e.payload
     const cur = sprite.getCurrentState()
@@ -149,7 +157,7 @@ async function main() {
 
     if (energy <= 20) {
       sprite.setState('deep_sleep')
-    } else if (hunger > 50) {
+    } else if (hunger >= 100) {
       sprite.setState('sleeping')
     } else if (cur === 'sleeping' || cur === 'deep_sleep') {
       sprite.setState('idle')

@@ -348,6 +348,10 @@ async function main() {
       })
       break
 
+    case 'sleep':
+      await cmdWithDaemon('sleep', () => console.log('😴 宠物去睡觉了，喂食可以唤醒它'))
+      break
+
     case 'stop':
       await cmdWithDaemon('stop', () => console.log('👋 BitPet 已关闭'))
       break
@@ -378,8 +382,9 @@ BitPet CLI — 桌面宠物控制工具
 
 用法：
   bitpet init                         启动宠物（首次使用，自动配置 Claude Code hooks）
-  bitpet feed                         喂食
+  bitpet feed                         喂食（唤醒睡眠中的宠物）
   bitpet play                         玩耍
+  bitpet sleep                        让宠物进入睡眠
   bitpet status                       查看状态
   bitpet stop                         关闭宠物
   bitpet install-cli                  从 .app bundle 安装/更新 CLI 符号链接

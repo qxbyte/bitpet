@@ -112,11 +112,18 @@ impl StateManager {
         s.pos_y = y;
     }
 
-    /// Called every 30 minutes by the decay timer.
+    pub fn sleep(&self) -> PetState {
+        let mut s = self.state.lock().unwrap();
+        s.hunger = 100;
+        s.last_active = now_ts();
+        s.clone()
+    }
+
+    /// Called every 6 minutes. Hunger +10/tick → 100% in 1 hour; energy -1/tick → same hourly rate as before.
     pub fn decay(&self) -> PetState {
         let mut s = self.state.lock().unwrap();
         s.hunger = s.hunger.saturating_add(10).min(100);
-        s.energy = s.energy.saturating_sub(5);
+        s.energy = s.energy.saturating_sub(1);
         s.clone()
     }
 }

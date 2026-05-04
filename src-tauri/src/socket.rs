@@ -112,6 +112,13 @@ async fn handle_connection(
                     "play" => {
                         let s = state.play();
                         state.save();
+                        let _ = event_tx.send(ServerEvent::PlayAction);
+                        let _ = event_tx.send(ServerEvent::StateUpdate(s.clone()));
+                        (Some(s), None)
+                    }
+                    "sleep" => {
+                        let s = state.sleep();
+                        state.save();
                         let _ = event_tx.send(ServerEvent::StateUpdate(s.clone()));
                         (Some(s), None)
                     }
@@ -150,5 +157,6 @@ pub enum ServerEvent {
     MessageDelta { delta: String },
     SessionEnd,
     StateUpdate(crate::state::PetState),
+    PlayAction,
     Stop,
 }
