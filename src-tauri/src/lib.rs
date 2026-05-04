@@ -23,6 +23,10 @@ fn update_position(x: f64, y: f64, state: tauri::State<Arc<StateManager>>) {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            // Hide from Dock and Cmd+Tab — BitPet is a floating overlay, not a regular app.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             let state = Arc::new(StateManager::new());
 
             // Position window. Use logical coordinates so Retina scaling is handled correctly.

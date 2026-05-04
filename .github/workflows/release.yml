@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 0.1.1），留空则使用 package.json 中的版本'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest   # Apple Silicon (M-series)
+            target: aarch64-apple-darwin
+          - os: macos-13       # Intel
+            target: x86_64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VER="${{ github.event.inputs.version }}"
+            if [ -z "$VER" ]; then
+              VER=$(node -p "require('./package.json').version")
+            fi
+            echo "name=v${VER}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.tag.outputs.name }}
+          releaseName: 'BitPet ${{ steps.tag.outputs.name }}'
+          releaseBody: |
+            ## 下载
+
+            | 文件 | 适用机型 |
+            |---|---|
+            | `BitPet_*_aarch64.dmg` | Apple Silicon（M1/M2/M3/M4） |
+            | `BitPet_*_x64.dmg` | Intel Mac |
+
+            ## 安装
+
+            1. 下载对应 DMG，打开后将 BitPet.app 拖入 Applications
+            2. 安装 CLI：
+            ```bash
+            cd bitpet/cli && npm install -g .
+            bitpet init
+            ```
+
+            首次打开若提示"无法验证开发者"：右键 BitPet.app → 打开 → 打开。
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
