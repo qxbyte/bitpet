@@ -3,7 +3,7 @@ export type AnimationName =
   | 'walk_right' | 'walk_left'
   | 'thinking' | 'launch' | 'exit'
   | 'sleeping' | 'active'
-  | 'click' | 'deep_sleep';
+  | 'click' | 'deep_sleep' | 'play';
 
 interface AnimationDef {
   start: number;

@@ -109,6 +109,13 @@ async fn handle_connection(
                         let _ = event_tx.send(ServerEvent::StateUpdate(s.clone()));
                         (Some(s), None)
                     }
+                    "play" => {
+                        let s = state.play();
+                        state.save();
+                        let _ = event_tx.send(ServerEvent::PlayAction);
+                        let _ = event_tx.send(ServerEvent::StateUpdate(s.clone()));
+                        (Some(s), None)
+                    }
                     "sleep" => {
                         let s = state.sleep();
                         state.save();

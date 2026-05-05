@@ -147,7 +147,7 @@ async function main() {
       const status = await invoke<{ hunger: number; energy: number }>('get_status')
       const cur = sprite.getCurrentState()
 
-      if (LOCKED.includes(cur) || cur.startsWith('walk')) return
+      if (LOCKED.includes(cur) || cur.startsWith('walk') || cur === 'play') return
       if (status.energy <= 20 && cur !== 'deep_sleep') {
         sprite.setState('deep_sleep')
       } else if (status.hunger >= 100 && cur !== 'sleeping' && cur !== 'deep_sleep') {
@@ -160,16 +160,26 @@ async function main() {
   await syncState()
   setInterval(syncState, 500)
 
-  // 睡觉动画（持久）：直接切换，不受 LOCKED 限制
+  // 睡觉动画
   await listen('pet:sleep', () => {
     sprite.setState('sleeping', true)
+  })
+
+  // 玩耍动画（与睡觉完全相同的结构，只是动画不同）
+  let playReturnTimer = 0
+  await listen('pet:play', () => {
+    sprite.setState('play', true)
+    window.clearTimeout(playReturnTimer)
+    playReturnTimer = window.setTimeout(() => {
+      if (sprite.getCurrentState() === 'play') sprite.setState('idle', true)
+    }, 5000)
   })
 
   // 状态衰减 → 饥饿达到 100% 时进入睡眠；喂食后唤醒
   await listen<{ hunger: number; energy: number }>('state:update', (e) => {
     const { hunger, energy } = e.payload
     const cur = sprite.getCurrentState()
-    if (LOCKED.includes(cur) || cur.startsWith('walk')) return
+    if (LOCKED.includes(cur) || cur.startsWith('walk') || cur === 'play') return
 
     if (energy <= 20) {
       sprite.setState('deep_sleep')

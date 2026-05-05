@@ -12,9 +12,28 @@
 const net = require('net')
 const os = require('os')
 const path = require('path')
+const fs = require('fs')
 
 const SOCKET = path.join(os.tmpdir(), 'bitpet.sock')
 const MAX_DELTA = 500  // truncate hook payloads to 500 chars
+
+// Per-session skip flags: written when /pet command detected, prevents
+// thinking/output animations from firing during /pet command execution.
+function skipFlagPath(sid) {
+  return path.join(os.tmpdir(), `bitpet-skip-${sid.slice(0, 32).replace(/[^a-zA-Z0-9_-]/g, '_')}`)
+}
+function isSkipped(sid) {
+  if (!sid) return false
+  try { return fs.existsSync(skipFlagPath(sid)) } catch { return false }
+}
+function markSkip(sid) {
+  if (!sid) return
+  try { fs.writeFileSync(skipFlagPath(sid), '1') } catch {}
+}
+function clearSkip(sid) {
+  if (!sid) return
+  try { if (fs.existsSync(skipFlagPath(sid))) fs.unlinkSync(skipFlagPath(sid)) } catch {}
+}
 
 function send(msg) {
   return new Promise((resolve) => {
@@ -37,12 +56,22 @@ async function main() {
     let session = rest.join(' ').trim().slice(0, 80)
     if (!session) {
       // Claude Code passes JSON via stdin for all hook types.
-      // PreToolUse  → { tool_name, tool_input, session_id }
+      // PreToolUse       → { tool_name, tool_input, session_id }
       // UserPromptSubmit → { prompt, session_id }
       const raw = await readStdin()
       try {
         const obj = JSON.parse(raw.trim())
-        session = obj.tool_name || (obj.session_id ? obj.session_id.slice(0, 8) : '') || 'thinking'
+        const sid = obj.session_id || ''
+        // UserPromptSubmit has obj.prompt: detect /pet slash command and skip animations.
+        if (obj.prompt !== undefined) {
+          if (/^\/pet\b/.test(obj.prompt.trim())) {
+            markSkip(sid)
+            process.exit(0)
+          }
+        }
+        // PreToolUse following a /pet command: session already flagged, skip.
+        if (isSkipped(sid)) process.exit(0)
+        session = obj.tool_name || (sid ? sid.slice(0, 8) : '') || 'thinking'
       } catch {
         session = 'thinking'
       }
@@ -50,15 +79,23 @@ async function main() {
     await send({ type: 'session_start', tool, session })
 
   } else if (type === 'message') {
+    const raw = await readStdin()
+    let sid = ''
+    try { sid = JSON.parse(raw.trim()).session_id || '' } catch {}
+    if (isSkipped(sid)) process.exit(0)
     let delta = rest.join(' ').trim()
-    if (!delta) {
-      const raw = await readStdin()
-      delta = extractDeltaFromHookJson(raw)
-    }
+    if (!delta) delta = extractDeltaFromHookJson(raw)
     delta = delta.replace(/\s+/g, ' ').trim().slice(0, MAX_DELTA)
     if (delta) await send({ type: 'message', tool, delta })
 
   } else if (type === 'session-end') {
+    const raw = await readStdin()
+    let sid = ''
+    try { sid = JSON.parse(raw.trim()).session_id || '' } catch {}
+    if (isSkipped(sid)) {
+      clearSkip(sid)
+      process.exit(0)
+    }
     await send({ type: 'session_end', tool })
   }
 

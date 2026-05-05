@@ -89,6 +89,7 @@ impl StateManager {
         let mut s = self.state.lock().unwrap();
         s.hunger = s.hunger.saturating_sub(30);
         s.mood = s.mood.saturating_add(20).min(100);
+        s.energy = s.energy.saturating_add(30).min(100);
         s.last_active = now_ts();
         s.clone()
     }
@@ -102,6 +103,14 @@ impl StateManager {
         let mut s = self.state.lock().unwrap();
         s.pos_x = x;
         s.pos_y = y;
+    }
+
+    pub fn play(&self) -> PetState {
+        let mut s = self.state.lock().unwrap();
+        s.mood = s.mood.saturating_add(15).min(100);
+        s.energy = s.energy.saturating_sub(10);
+        s.last_active = now_ts();
+        s.clone()
     }
 
     pub fn sleep(&self) -> PetState {
