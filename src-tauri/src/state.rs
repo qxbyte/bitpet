@@ -93,14 +93,6 @@ impl StateManager {
         s.clone()
     }
 
-    pub fn play(&self) -> PetState {
-        let mut s = self.state.lock().unwrap();
-        s.mood = s.mood.saturating_add(15).min(100);
-        s.energy = s.energy.saturating_sub(10);
-        s.last_active = now_ts();
-        s.clone()
-    }
-
     pub fn touch(&self) {
         let mut s = self.state.lock().unwrap();
         s.last_active = now_ts();
@@ -115,6 +107,7 @@ impl StateManager {
     pub fn sleep(&self) -> PetState {
         let mut s = self.state.lock().unwrap();
         s.hunger = 100;
+        s.energy = s.energy.max(30);
         s.last_active = now_ts();
         s.clone()
     }

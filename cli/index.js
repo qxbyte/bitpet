@@ -14,7 +14,7 @@ const CMD_FILE = path.join(COMMANDS_DIR, 'pet.md')
 const CLAUDE_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json')
 
 const PET_CMD_CONTENT = `---
-description: 控制 BitPet 桌面宠物（init/feed/play/status/stop）
+description: 控制 BitPet 桌面宠物（init/feed/sleep/status/stop）
 ---
 !bitpet $ARGUMENTS
 `
@@ -338,10 +338,6 @@ async function main() {
       await cmdWithDaemon('feed', () => console.log('🍖 喂食成功！宠物吃得很开心～'))
       break
 
-    case 'play':
-      await cmdWithDaemon('play', () => console.log('🎮 玩耍中！宠物跳起来了～'))
-      break
-
     case 'status':
       await cmdWithDaemon('status', (data) => {
         if (data) formatStatus(data)
@@ -383,7 +379,6 @@ BitPet CLI — 桌面宠物控制工具
 用法：
   bitpet init                         启动宠物（首次使用，自动配置 Claude Code hooks）
   bitpet feed                         喂食（唤醒睡眠中的宠物）
-  bitpet play                         玩耍
   bitpet sleep                        让宠物进入睡眠
   bitpet status                       查看状态
   bitpet stop                         关闭宠物

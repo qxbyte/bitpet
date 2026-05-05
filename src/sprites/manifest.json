@@ -47,15 +47,10 @@
       "end": 53,
       "fps": 8
     },
-    "eating": {
-      "start": 42,
-      "end": 47,
-      "fps": 1
-    },
     "deep_sleep": {
-      "start": 48,
-      "end": 53,
-      "fps": 8
+      "start": 30,
+      "end": 35,
+      "fps": 4
     }
   }
 }

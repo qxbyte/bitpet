@@ -5,7 +5,7 @@ import { PixelSprite, AnimationName } from './sprite';
 import { BubbleLayer } from './bubble';
 
 const PHRASES = ['哎！', '嘿～', '别戳了！', '好痒～', '干嘛啦', '(*/ω＼*)', '呦？', '...']
-const LOCKED: AnimationName[] = ['launch', 'exit', 'thinking', 'active', 'click', 'eating']
+const LOCKED: AnimationName[] = ['launch', 'exit', 'thinking', 'active', 'click']
 
 async function main() {
   const canvas = document.getElementById('pet-canvas') as HTMLCanvasElement
@@ -141,15 +141,31 @@ async function main() {
     sprite.setState('exit', true)
   })
 
-  // 玩耍动画 → Row 9 (eating) 播放 2 秒后回到 idle
-  await listen('pet:play', () => {
-    sprite.setState('eating', true)
-    setTimeout(() => {
-      if (sprite.getCurrentState() === 'eating') sprite.setState('idle', true)
-    }, 2000)
+  // 状态轮询：500ms 检查一次，同步 sleep 状态
+  const syncState = async () => {
+    try {
+      const status = await invoke<{ hunger: number; energy: number }>('get_status')
+      const cur = sprite.getCurrentState()
+
+      if (LOCKED.includes(cur) || cur.startsWith('walk')) return
+      if (status.energy <= 20 && cur !== 'deep_sleep') {
+        sprite.setState('deep_sleep')
+      } else if (status.hunger >= 100 && cur !== 'sleeping' && cur !== 'deep_sleep') {
+        sprite.setState('sleeping', true)
+      } else if (status.hunger < 100 && (cur === 'sleeping' || cur === 'deep_sleep')) {
+        sprite.setState('idle', true)
+      }
+    } catch { /* ignore */ }
+  }
+  await syncState()
+  setInterval(syncState, 500)
+
+  // 睡觉动画（持久）：直接切换，不受 LOCKED 限制
+  await listen('pet:sleep', () => {
+    sprite.setState('sleeping', true)
   })
 
-  // 状态衰减 → 饥饿达到 100% 时 Row 6 (sleeping) / 精力耗尽时 Row 9 (deep_sleep)
+  // 状态衰减 → 饥饿达到 100% 时进入睡眠；喂食后唤醒
   await listen<{ hunger: number; energy: number }>('state:update', (e) => {
     const { hunger, energy } = e.payload
     const cur = sprite.getCurrentState()
@@ -164,8 +180,27 @@ async function main() {
     }
   })
 
-  // ── 闲置只保持 Row 1，无随机变体 ─────────────────────────
-  // (idle IS Row 1, 没有其他切换逻辑)
+  // ── 右键菜单 ─────────────────────────────────────────────
+  const ctxMenu = document.getElementById('context-menu')!
+  const menuQuit = document.getElementById('menu-quit')!
+
+  app.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+    const x = Math.min(e.clientX, window.innerWidth - 90)
+    const y = Math.min(e.clientY, window.innerHeight - 30)
+    ctxMenu.style.left = `${x}px`
+    ctxMenu.style.top = `${y}px`
+    ctxMenu.style.display = 'block'
+  })
+
+  document.addEventListener('click', () => {
+    ctxMenu.style.display = 'none'
+  })
+
+  menuQuit.addEventListener('click', () => {
+    ctxMenu.style.display = 'none'
+    invoke('quit_app')
+  })
 }
 
 main().catch(console.error)

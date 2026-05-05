@@ -19,6 +19,15 @@ fn update_position(x: f64, y: f64, state: tauri::State<Arc<StateManager>>) {
     state.save();
 }
 
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let _ = app.emit("app:exit", ());
+        sleep(Duration::from_secs(6)).await;
+        app.exit(0);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -96,6 +105,9 @@ pub fn run() {
                         ServerEvent::PlayAction => {
                             let _ = app_handle.emit("pet:play", ());
                         }
+                        ServerEvent::SleepAction => {
+                            let _ = app_handle.emit("pet:sleep", ());
+                        }
                     }
                 }
             });
@@ -116,7 +128,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_status, update_position])
+        .invoke_handler(tauri::generate_handler![get_status, update_position, quit_app])
         .run(tauri::generate_context!())
         .expect("error running BitPet");
 }
