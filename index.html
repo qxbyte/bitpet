@@ -95,6 +95,32 @@
       border: 4px solid transparent;
       border-top-color: #E87C35;
     }
+
+    #context-menu {
+      display: none;
+      position: fixed;
+      background: #1a1a2e;
+      border: 1px solid #E87C35;
+      border-radius: 4px;
+      z-index: 9999;
+      min-width: 80px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    .ctx-item {
+      padding: 5px 10px;
+      cursor: pointer;
+      color: #ffe8d0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .ctx-item:hover {
+      background: #E87C35;
+      color: #1a1a2e;
+    }
+
   </style>
 </head>
 <body>
@@ -105,6 +131,9 @@
     </div>
     <div id="loading">🐾</div>
     <canvas id="pet-canvas" width="64" height="64" style="display:none"></canvas>
+  </div>
+  <div id="context-menu">
+    <div class="ctx-item" id="menu-quit">退出</div>
   </div>
   <script type="module" src="./src/main.ts"></script>
 </body>
