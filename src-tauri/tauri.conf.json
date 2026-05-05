@@ -1,6 +1,6 @@
 {
   "productName": "BitPet",
-  "version": "0.0.9",
+  "version": "1.0.2",
   "identifier": "dev.bitpet",
   "build": {
     "beforeDevCommand": "npm run vite:dev",
