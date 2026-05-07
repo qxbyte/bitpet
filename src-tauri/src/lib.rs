@@ -112,7 +112,7 @@ pub fn run() {
                 }
             });
 
-            // Decay timer: fires every 6 minutes → hunger +10/tick = 100% in 1 hour.
+            // Decay timer: fires every 6 minutes → hunger +5/tick = 100% in 2 hours.
             let state_decay = Arc::clone(&state);
             let app_for_decay: AppHandle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
