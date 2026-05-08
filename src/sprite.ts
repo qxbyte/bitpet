@@ -45,7 +45,11 @@ export class PixelSprite {
   }
 
   setState(name: AnimationName, immediate = false) {
-    if (this.current === name) return;
+    if (this.current === name) {
+      // 重新确认当前状态：清除可能存在的待切换（防止被轮询覆盖）
+      if (immediate) this.pending = null;
+      return;
+    }
     if (immediate) {
       this.pending = null;
       this.current = name;
