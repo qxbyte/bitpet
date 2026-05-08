@@ -124,6 +124,16 @@ function cmdInstallCli() {
   console.log('\n✅ CLI 安装完成，后续更新 BitPet.app 即可自动同步 CLI。')
 }
 
+function cmdInstallApp() {
+  const script = path.join(__dirname, 'scripts', 'postinstall.js')
+  const child = spawn(process.execPath, [script], { stdio: 'inherit' })
+  child.on('exit', (code) => process.exit(code || 0))
+  child.on('error', (e) => {
+    console.error(`❌ 安装 BitPet.app 失败：${e.message}`)
+    process.exit(1)
+  })
+}
+
 // ── Install Claude Code slash command ────────────────────────
 
 function installClaudeCommand() {
@@ -243,10 +253,14 @@ async function cmdInit() {
   const appBundle   = path.join(projectRoot, 'src-tauri', 'target', 'release', 'bundle', 'macos', 'BitPet.app')
   const debugBin    = path.join(projectRoot, 'src-tauri', 'target', 'debug', 'bitpet')
   const releaseBin  = path.join(projectRoot, 'src-tauri', 'target', 'release', 'bitpet')
-  const installedApp = '/Applications/BitPet.app'
+  const installedApps = [
+    '/Applications/BitPet.app',
+    path.join(os.homedir(), 'Applications', 'BitPet.app'),
+  ]
+  const installedApp = installedApps.find(app => fs.existsSync(app))
 
   let child
-  if (fs.existsSync(installedApp)) {
+  if (installedApp) {
     child = spawn('open', [installedApp], { detached: true, stdio: 'ignore' })
   } else if (fs.existsSync(appBundle)) {
     child = spawn('open', [appBundle], { detached: true, stdio: 'ignore' })
@@ -272,7 +286,8 @@ async function cmdInit() {
     child = spawn(debugBin, [], { detached: true, stdio: 'ignore' })
   } else {
     console.error('❌ 找不到 BitPet 可执行文件')
-    console.error('   请先构建项目：cd ' + projectRoot + ' && npm run build')
+    console.error('   请运行：bitpet install-app')
+    console.error('   开发环境可运行：cd ' + projectRoot + ' && npm run build')
     process.exit(1)
   }
   child.unref()
@@ -360,6 +375,10 @@ async function main() {
       cmdInstallCli()
       break
 
+    case 'install-app':
+      cmdInstallApp()
+      break
+
     case 'hooks':
       installClaudeHooks()
       break
@@ -387,6 +406,7 @@ BitPet CLI — 桌面宠物控制工具
   bitpet sleep                        让宠物进入睡眠
   bitpet status                       查看状态
   bitpet stop                         关闭宠物
+  bitpet install-app                  下载并安装同版本 BitPet.app
   bitpet install-cli                  从 .app bundle 安装/更新 CLI 符号链接
   bitpet hooks                        重新写入 Claude Code hooks（修复动画不触发问题）
   bitpet setup-hooks --tool <name>    显示 hooks 配置指引（其他工具）

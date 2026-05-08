@@ -45,7 +45,9 @@
     "resources": {
       "../cli/index.js": "cli/index.js",
       "../cli/bitpet-hook.js": "cli/bitpet-hook.js",
-      "../cli/hooks-guide.js": "cli/hooks-guide.js"
+      "../cli/hooks-guide.js": "cli/hooks-guide.js",
+      "../cli/package.json": "cli/package.json",
+      "../cli/scripts/postinstall.js": "cli/scripts/postinstall.js"
     },
     "macOS": {
       "infoPlist": "./Info.plist"
