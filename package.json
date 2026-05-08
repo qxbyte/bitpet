@@ -1,11 +1,12 @@
 {
   "name": "bitpet",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A desktop pet companion for CLI AI tools",
   "scripts": {
     "sync-version": "node scripts/sync-version.js",
     "dev": "npm run sync-version && tauri dev",
     "build": "npm run sync-version && tauri build",
+    "release": "node scripts/sync-version.js && cd cli && npm publish",
     "tauri": "tauri",
     "vite:dev": "vite",
     "vite:build": "vite build"
