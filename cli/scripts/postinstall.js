@@ -102,7 +102,7 @@ async function main() {
   }
 
   // Mount DMG.
-  const mountRes = run('hdiutil', ['attach', tmpDmg, '-nobrowse', '-quiet', '-mountrandom', os.tmpdir()])
+  const mountRes = run('hdiutil', ['attach', tmpDmg, '-nobrowse', '-mountrandom', os.tmpdir()])
   if (mountRes.status !== 0) {
     console.log('❌ 挂载 DMG 失败，请手动安装')
     cleanUp(); process.exit(0)

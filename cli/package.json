@@ -1,6 +1,6 @@
 {
   "name": "bitpet",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Desktop pet companion for AI coding tools — lives on your desktop and reacts to Claude Code sessions",
   "main": "index.js",
   "bin": {
@@ -8,6 +8,7 @@
     "bitpet-hook": "bitpet-hook.js"
   },
   "scripts": {
+    "prepublishOnly": "cd .. && node scripts/sync-version.js",
     "postinstall": "node ./scripts/postinstall.js",
     "test": "node index.js --version"
   },
