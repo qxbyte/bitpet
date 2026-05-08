@@ -44,6 +44,13 @@ which bitpet-hook
 bitpet init
 ```
 
+如果 npm 安装时网络中断或 GitHub Release 资产还没生成，可能只安装了 CLI、没有装上 `BitPet.app`。这时不用重新发布包，直接重新安装 App：
+
+```bash
+bitpet install-app
+bitpet init
+```
+
 **更新：**
 
 ```bash
@@ -70,6 +77,7 @@ bitpet status
 ```
 
 > `--ignore-scripts` 会跳过自动下载和安装 `BitPet.app` 的步骤。
+> 如需之后补装桌面应用，运行 `bitpet install-app`。
 
 ---
 
@@ -92,6 +100,12 @@ npm install -g bitpet --ignore-scripts   # 只装 CLI，跳过 app 下载
 
 ```bash
 xattr -cr /Applications/BitPet.app
+```
+
+如果你把 App 放在用户目录，则使用：
+
+```bash
+xattr -cr ~/Applications/BitPet.app
 ```
 
 > **注意**：git clone 只能获取源代码，无法直接安装 app。app 需要通过 DMG 或 `npm install -g bitpet` 安装。开发者可用 `npm run build` 从源码编译。
@@ -321,6 +335,17 @@ echo "$(npm prefix -g)/bin"
 ```
 
 如果 `which bitpet` 没有输出，把 `echo "$(npm prefix -g)/bin"` 显示的目录加入 shell 的 `PATH`。
+
+**`bitpet init` 提示找不到 BitPet 可执行文件？**
+
+通常是 npm postinstall 没能完成 App 下载或安装。先补装 App：
+
+```bash
+bitpet install-app
+bitpet init
+```
+
+如果仍失败，到 [Releases](https://github.com/qxbyte/bitpet/releases/latest) 下载同版本 DMG，拖入 `/Applications` 或 `~/Applications` 后再运行 `bitpet init`。
 
 **macOS 提示"无法验证开发者"？**
 

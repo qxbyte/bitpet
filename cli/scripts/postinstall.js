@@ -33,11 +33,13 @@ function download(url, dest) {
     const follow = (u, depth) => {
       if (depth > 8) return reject(new Error('too many redirects'))
       const mod = u.startsWith('https') ? https : http
-      mod.get(u, (res) => {
+      const req = mod.get(u, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
-          return follow(res.headers.location, depth + 1)
+          res.resume()
+          return follow(new URL(res.headers.location, u).toString(), depth + 1)
         }
         if (res.statusCode !== 200) {
+          res.resume()
           return reject(new Error(`HTTP ${res.statusCode} — release not found`))
         }
         const total = parseInt(res.headers['content-length'] || '0', 10)
@@ -53,7 +55,11 @@ function download(url, dest) {
         res.pipe(file)
         file.on('finish', () => { process.stdout.write('\n'); file.close(resolve) })
         file.on('error', reject)
+        res.on('error', reject)
       }).on('error', reject)
+      req.setTimeout(45000, () => {
+        req.destroy(new Error('download timeout'))
+      })
     }
     follow(url, 0)
   })
@@ -67,6 +73,17 @@ function cleanUp() {
   try { fs.unlinkSync(tmpDmg) } catch { /* ok */ }
 }
 
+function targetHomeDir() {
+  const sudoUser = process.env.SUDO_USER
+  if (sudoUser && sudoUser !== 'root') {
+    const res = run('dscl', ['.', '-read', `/Users/${sudoUser}`, 'NFSHomeDirectory'])
+    const match = res.stdout.toString().match(/NFSHomeDirectory:\s*(.+)/)
+    if (match?.[1]) return match[1].trim()
+    return path.join('/Users', sudoUser)
+  }
+  return process.env.HOME || os.homedir()
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 async function main() {
@@ -75,8 +92,10 @@ async function main() {
   // Download DMG.
   console.log(`⬇️  下载 ${dmgName}`)
   try {
+    cleanUp()
     await download(dmgUrl, tmpDmg)
   } catch (e) {
+    cleanUp()
     console.log(`\n⚠️  下载失败：${e.message}`)
     console.log(`   请手动下载：https://github.com/${REPO}/releases/tag/v${VERSION}`)
     process.exit(0)
@@ -99,7 +118,17 @@ async function main() {
   // Copy .app — try /Applications first, fall back to ~/Applications.
   const appSrc   = path.join(mountPoint, 'BitPet.app')
   let installDir = null
-  for (const dir of ['/Applications', path.join(os.homedir(), 'Applications')]) {
+  const installErrors = []
+
+  if (!fs.existsSync(appSrc)) {
+    const entries = fs.readdirSync(mountPoint).join(', ')
+    console.log(`❌ DMG 中找不到 BitPet.app，当前内容：${entries}`)
+    run('hdiutil', ['detach', mountPoint, '-quiet'])
+    cleanUp()
+    process.exit(0)
+  }
+
+  for (const dir of ['/Applications', path.join(targetHomeDir(), 'Applications')]) {
     try {
       fs.mkdirSync(dir, { recursive: true })
       run('rm', ['-rf', path.join(dir, 'BitPet.app')])
@@ -110,7 +139,10 @@ async function main() {
         installDir = dir
         break
       }
-    } catch { /* next */ }
+      installErrors.push(`${dir}: ${res.stderr.toString().trim() || `cp exited ${res.status}`}`)
+    } catch (e) {
+      installErrors.push(`${dir}: ${e.message}`)
+    }
   }
 
   // Unmount and clean up.
@@ -118,7 +150,8 @@ async function main() {
   cleanUp()
 
   if (!installDir) {
-    console.log('❌ 无法写入 /Applications，请手动安装 DMG')
+    console.log('❌ 无法写入 /Applications 或 ~/Applications，请手动安装 DMG')
+    for (const err of installErrors) console.log(`   ${err}`)
     console.log(`   https://github.com/${REPO}/releases/tag/v${VERSION}`)
     process.exit(0)
   }

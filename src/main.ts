@@ -141,15 +141,19 @@ async function main() {
     sprite.setState('exit', true)
   })
 
-  // 状态轮询：500ms 检查一次，同步 sleep 状态
+  // 状态轮询：500ms 检查一次，同步 sleep 状态（不覆盖事件驱动的待切换状态）
   const syncState = async () => {
     try {
       const status = await invoke<{ hunger: number; energy: number }>('get_status')
       const cur = sprite.getCurrentState()
+      const pending = sprite.getPendingState()
 
       if (LOCKED.includes(cur) || cur.startsWith('walk') || cur === 'play') return
+      // 有待切换状态时，事件优先，轮询不覆盖
+      if (pending !== null) return
+
       if (status.energy <= 20 && cur !== 'deep_sleep') {
-        sprite.setState('deep_sleep')
+        sprite.setState('deep_sleep', true)
       } else if (status.hunger >= 100 && cur !== 'sleeping' && cur !== 'deep_sleep') {
         sprite.setState('sleeping', true)
       } else if (status.hunger < 100 && (cur === 'sleeping' || cur === 'deep_sleep')) {
@@ -182,11 +186,11 @@ async function main() {
     if (LOCKED.includes(cur) || cur.startsWith('walk') || cur === 'play') return
 
     if (energy <= 20) {
-      sprite.setState('deep_sleep')
+      sprite.setState('deep_sleep', true)
     } else if (hunger >= 100) {
-      sprite.setState('sleeping')
+      sprite.setState('sleeping', true)
     } else if (cur === 'sleeping' || cur === 'deep_sleep') {
-      sprite.setState('idle')
+      sprite.setState('idle', true)
     }
   })
 
