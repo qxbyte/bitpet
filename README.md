@@ -14,15 +14,35 @@
 
 ---
 
-## 安装
+## 快速安装
 
-### 方式一：npm（推荐）
+### 一键安装 App + CLI（推荐）
+
+通过 npm 安装全局 CLI，同时自动下载同版本的 `BitPet.app` 并安装到 `/Applications`（无权限时回退到 `~/Applications`）：
 
 ```bash
 npm install -g bitpet
 ```
 
-自动完成：下载并安装 `BitPet.app` + 注册 `bitpet` / `bitpet-hook` 命令。
+安装完成后会得到：
+
+- 桌面应用：`BitPet.app`
+- 命令行工具：`bitpet`
+- AI 工具 hook 命令：`bitpet-hook`
+
+快速验证：
+
+```bash
+bitpet --version
+which bitpet
+which bitpet-hook
+```
+
+启动桌面宠物：
+
+```bash
+bitpet init
+```
 
 **更新：**
 
@@ -30,11 +50,30 @@ npm install -g bitpet
 npm update -g bitpet
 ```
 
-一条命令同步更新 CLI 和桌面应用。
+`bitpet` npm 包、CLI 和 `BitPet.app` 使用同一个版本号。每次 GitHub Release 发布新版本后，npm 安装脚本会下载匹配版本的 DMG，因此一条命令即可同步更新 CLI 和桌面应用。
 
 ---
 
-### 方式二：手动安装 DMG
+### 只安装 CLI，不自动安装 App
+
+如果你只想安装命令行工具，或者已经手动安装了 `BitPet.app`：
+
+```bash
+npm install -g bitpet --ignore-scripts
+```
+
+之后仍可使用：
+
+```bash
+bitpet --version
+bitpet status
+```
+
+> `--ignore-scripts` 会跳过自动下载和安装 `BitPet.app` 的步骤。
+
+---
+
+### 手动安装 App（DMG）
 
 从 [Releases](https://github.com/qxbyte/bitpet/releases) 下载对应架构的 DMG：
 
@@ -43,7 +82,7 @@ npm update -g bitpet
 | `BitPet_x.x.x_aarch64.dmg` | Apple Silicon（M1/M2/M3/M4） |
 | `BitPet_x.x.x_x64.dmg` | Intel Mac |
 
-打开 DMG，将 `BitPet.app` 拖入 `/Applications`，然后安装 CLI：
+打开 DMG，将 `BitPet.app` 拖入 `/Applications`。如果还需要 CLI，再运行：
 
 ```bash
 npm install -g bitpet --ignore-scripts   # 只装 CLI，跳过 app 下载
@@ -59,7 +98,7 @@ xattr -cr /Applications/BitPet.app
 
 ---
 
-### 方式二：从源码构建
+### 从源码构建
 
 ```bash
 # 1. 克隆仓库
@@ -273,12 +312,15 @@ bitpet init
 
 **`bitpet` 命令找不到？**
 
-确认 CLI 已全局安装：
+确认 CLI 已全局安装，并检查 npm 全局 bin 是否在 `PATH` 中：
 
 ```bash
-cd bitpet/cli
-npm install -g .
+npm install -g bitpet --ignore-scripts
+which bitpet
+echo "$(npm prefix -g)/bin"
 ```
+
+如果 `which bitpet` 没有输出，把 `echo "$(npm prefix -g)/bin"` 显示的目录加入 shell 的 `PATH`。
 
 **macOS 提示"无法验证开发者"？**
 
