@@ -84,14 +84,7 @@ jobs:
             [ -z "$V" ] && V=$(node -p "require('./package.json').version")
             TAG="v${V}"
           fi
-          VER="${TAG#v}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json'));
-            pkg.version = '${VER}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-          node scripts/sync-version.js
+          node scripts/sync-version.js "$TAG"
 
       - name: Install frontend dependencies
         run: npm install
@@ -160,13 +153,7 @@ jobs:
             TAG="v${V}"
           fi
           VER="${TAG#v}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json'));
-            pkg.version = '${VER}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-          node scripts/sync-version.js
+          node scripts/sync-version.js "$TAG"
           echo "version=$VER" >> "$GITHUB_OUTPUT"
 
       - name: Verify npm token is configured
