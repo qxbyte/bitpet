@@ -2,7 +2,7 @@ name: Release
 
 on:
   release:
-    types: [created, published]
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
@@ -13,9 +13,34 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_BRANCH: master
+
 jobs:
+  validate-release-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.ref.outputs.ref }}
+    steps:
+      - name: Resolve release ref
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            REF="${{ github.event.release.target_commitish }}"
+          else
+            REF="${{ github.ref_name }}"
+          fi
+
+          if [ "$REF" != "$RELEASE_BRANCH" ]; then
+            echo "::error::Releases must target $RELEASE_BRANCH, got $REF"
+            exit 1
+          fi
+
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
   # ── Job 1: Build DMG for each architecture ───────────────────
   build:
+    needs: validate-release-branch
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          ref: ${{ github.event.release.tag_name || needs.validate-release-branch.outputs.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -110,13 +135,13 @@ jobs:
 
   # ── Job 2: Publish CLI to npm (runs after all DMGs are uploaded) ──
   publish-npm:
-    needs: build
+    needs: [validate-release-branch, build]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          ref: ${{ github.event.release.tag_name || needs.validate-release-branch.outputs.ref }}
 
       - name: Setup Node.js with npm registry
         uses: actions/setup-node@v4
@@ -125,6 +150,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Sync version from tag
+        id: version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
@@ -141,9 +167,29 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
           node scripts/sync-version.js
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Verify npm token is configured
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::Missing NPM_TOKEN repository secret"
+            exit 1
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Check npm version availability
+        working-directory: cli
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION="${{ steps.version.outputs.version }}"
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::$NAME@$VERSION already exists on npm. Bump the release version before publishing."
+            exit 1
+          fi
 
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish
         working-directory: cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
