@@ -44,10 +44,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest   # Apple Silicon (M-series)
+          - os: macos-latest   # Apple Silicon (M-series), Rosetta 2 covers Intel Macs
             target: aarch64-apple-darwin
-          - os: macos-13       # Intel
-            target: x86_64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
@@ -123,9 +121,9 @@ jobs:
           prerelease: false
           args: --target ${{ matrix.target }}
 
-  # ── Job 2: Publish CLI to npm (runs after all DMGs are uploaded) ──
+  # ── Job 2: Publish CLI to npm (independent of DMG builds) ──
   publish-npm:
-    needs: [validate-release-branch, build]
+    needs: [validate-release-branch]
     runs-on: ubuntu-latest
 
     steps:
