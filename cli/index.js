@@ -124,14 +124,25 @@ function cmdInstallCli() {
   console.log('\n✅ CLI 安装完成，后续更新 BitPet.app 即可自动同步 CLI。')
 }
 
-function cmdInstallApp() {
+function installApp() {
   const script = path.join(__dirname, 'scripts', 'postinstall.js')
-  const child = spawn(process.execPath, [script], { stdio: 'inherit' })
-  child.on('exit', (code) => process.exit(code || 0))
-  child.on('error', (e) => {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script], { stdio: 'inherit' })
+    child.on('exit', (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`installer exited ${code}`))
+    })
+    child.on('error', reject)
+  })
+}
+
+async function cmdInstallApp() {
+  try {
+    await installApp()
+  } catch (e) {
     console.error(`❌ 安装 BitPet.app 失败：${e.message}`)
     process.exit(1)
-  })
+  }
 }
 
 // ── Install Claude Code slash command ────────────────────────
@@ -250,6 +261,7 @@ async function cmdInit() {
 
   // Locate runnable binary or .app bundle.
   const projectRoot = path.join(__dirname, '..')
+  const isSourceCheckout = fs.existsSync(path.join(projectRoot, 'src-tauri', 'tauri.conf.json'))
   const appBundle   = path.join(projectRoot, 'src-tauri', 'target', 'release', 'bundle', 'macos', 'BitPet.app')
   const debugBin    = path.join(projectRoot, 'src-tauri', 'target', 'debug', 'bitpet')
   const releaseBin  = path.join(projectRoot, 'src-tauri', 'target', 'release', 'bitpet')
@@ -257,16 +269,23 @@ async function cmdInit() {
     '/Applications/BitPet.app',
     path.join(os.homedir(), 'Applications', 'BitPet.app'),
   ]
-  const installedApp = installedApps.find(app => fs.existsSync(app))
+  const findInstalledApp = () => installedApps.find(app => fs.existsSync(app))
+  let installedApp = findInstalledApp()
 
   let child
+  if (!installedApp && !isSourceCheckout) {
+    console.log('🐾 未找到 BitPet.app，正在安装同版本桌面应用...')
+    await installApp()
+    installedApp = findInstalledApp()
+  }
+
   if (installedApp) {
     child = spawn('open', [installedApp], { detached: true, stdio: 'ignore' })
-  } else if (fs.existsSync(appBundle)) {
+  } else if (isSourceCheckout && fs.existsSync(appBundle)) {
     child = spawn('open', [appBundle], { detached: true, stdio: 'ignore' })
-  } else if (fs.existsSync(releaseBin)) {
+  } else if (isSourceCheckout && fs.existsSync(releaseBin)) {
     child = spawn(releaseBin, [], { detached: true, stdio: 'ignore' })
-  } else if (fs.existsSync(debugBin)) {
+  } else if (isSourceCheckout && fs.existsSync(debugBin)) {
     // Debug binary needs Vite dev server on port 1420.
     const started = await startViteIfNeeded(projectRoot)
     if (started) {
@@ -285,9 +304,8 @@ async function cmdInit() {
     }
     child = spawn(debugBin, [], { detached: true, stdio: 'ignore' })
   } else {
-    console.error('❌ 找不到 BitPet 可执行文件')
-    console.error('   请运行：bitpet install-app')
-    console.error('   开发环境可运行：cd ' + projectRoot + ' && npm run build')
+    console.error('❌ 找不到 BitPet.app')
+    console.error('   请检查网络后运行：bitpet install-app')
     process.exit(1)
   }
   child.unref()
@@ -376,7 +394,7 @@ async function main() {
       break
 
     case 'install-app':
-      cmdInstallApp()
+      await cmdInstallApp()
       break
 
     case 'hooks':

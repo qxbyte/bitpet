@@ -6,9 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（如 0.0.5），留空则使用 package.json 版本'
-        required: false
-        default: ''
+        description: '发布版本号（如 0.0.5，对应 tag v0.0.5）'
+        required: true
 
 permissions:
   contents: write
@@ -38,17 +37,15 @@ jobs:
 
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
-  # ── Job 1: Build DMG for each architecture ───────────────────
+  # ── Job 1: Build Apple Silicon DMG ───────────────────────────
   build:
     needs: validate-release-branch
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest   # Apple Silicon (M-series)
+          - os: macos-latest   # Apple Silicon (M-series), Rosetta 2 covers Intel Macs
             target: aarch64-apple-darwin
-          - os: macos-13       # Intel
-            target: x86_64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
@@ -73,7 +70,7 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # Sync version from release tag into all config files before building.
+      # Sync version from release tag into all first-party manifests before building.
       # This ensures the built app/CLI version matches the GitHub release tag.
       - name: Sync version from tag
         run: |
@@ -81,8 +78,7 @@ jobs:
             TAG="${{ github.event.release.tag_name }}"
           else
             V="${{ github.event.inputs.version }}"
-            [ -z "$V" ] && V=$(node -p "require('./package.json').version")
-            TAG="v${V}"
+            TAG="v${V#v}"
           fi
           node scripts/sync-version.js "$TAG"
 
@@ -105,8 +101,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           V="${{ github.event.inputs.version }}"
-          [ -z "$V" ] && V=$(node -p "require('./package.json').version")
-          echo "tag=v${V}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${V#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build and create release
         if: github.event_name == 'workflow_dispatch'
@@ -126,7 +121,7 @@ jobs:
           prerelease: false
           args: --target ${{ matrix.target }}
 
-  # ── Job 2: Publish CLI to npm (runs after all DMGs are uploaded) ──
+  # ── Job 2: Publish CLI to npm after release assets are uploaded ──
   publish-npm:
     needs: [validate-release-branch, build]
     runs-on: ubuntu-latest
@@ -149,12 +144,12 @@ jobs:
             TAG="${{ github.event.release.tag_name }}"
           else
             V="${{ github.event.inputs.version }}"
-            [ -z "$V" ] && V=$(node -p "require('./package.json').version")
-            TAG="v${V}"
+            TAG="v${V#v}"
           fi
           VER="${TAG#v}"
           node scripts/sync-version.js "$TAG"
           echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify npm token is configured
         run: |
@@ -175,8 +170,26 @@ jobs:
             exit 1
           fi
 
+      - name: Bundle BitPet.app release asset
+        run: |
+          mkdir -p cli/assets
+          gh release download "$TAG" \
+            --pattern "BitPet_aarch64.app.tar.gz" \
+            --dir cli/assets \
+            --clobber
+          test -s cli/assets/BitPet_aarch64.app.tar.gz
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+
+      - name: Verify CLI package
+        working-directory: cli
+        run: |
+          npm test
+          npm pack --dry-run
+
       - name: Publish to npm
-        run: npm publish
+        run: npm publish --access public
         working-directory: cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

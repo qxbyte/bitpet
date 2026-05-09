@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict'
-// Single source of truth: root package.json version.
-// Pass a release version/tag to update the root version first, then sync every
-// package/app manifest used by the desktop app and npm CLI package.
+// Single source of truth: root package.json version for local builds.
+// Release builds pass a tag/version here and it becomes the source of truth for
+// every first-party package/app manifest.
 
 const fs   = require('fs')
 const path = require('path')
@@ -50,6 +50,50 @@ for (const file of targets) {
   writeJson(file, obj)
   console.log(`  synced ${path.relative(root, file)}  ->  ${version}`)
   changed = true
+}
+
+function replaceFirstPackageVersion(toml, version) {
+  const packageHeader = toml.match(/(^|\n)\[package\]\n/)
+  if (!packageHeader) throw new Error('Missing [package] section in Cargo.toml')
+
+  const start = packageHeader.index + packageHeader[0].length
+  const rest = toml.slice(start)
+  const nextSection = rest.search(/\n\[/)
+  const end = nextSection === -1 ? toml.length : start + nextSection
+  const before = toml.slice(0, start)
+  const packageSection = toml.slice(start, end)
+  const after = toml.slice(end)
+
+  if (!/^version = ".+"/m.test(packageSection)) {
+    throw new Error('Missing package version in Cargo.toml')
+  }
+
+  return before + packageSection.replace(/^version = ".+"/m, `version = "${version}"`) + after
+}
+
+const cargoTomlFile = path.join(root, 'src-tauri', 'Cargo.toml')
+if (fs.existsSync(cargoTomlFile)) {
+  const cargoToml = fs.readFileSync(cargoTomlFile, 'utf8')
+  const nextCargoToml = replaceFirstPackageVersion(cargoToml, version)
+  if (nextCargoToml !== cargoToml) {
+    fs.writeFileSync(cargoTomlFile, nextCargoToml)
+    console.log(`  synced src-tauri/Cargo.toml  ->  ${version}`)
+    changed = true
+  }
+}
+
+const cargoLockFile = path.join(root, 'src-tauri', 'Cargo.lock')
+if (fs.existsSync(cargoLockFile)) {
+  const cargoLock = fs.readFileSync(cargoLockFile, 'utf8')
+  const nextCargoLock = cargoLock.replace(
+    /(\[\[package\]\]\nname = "bitpet"\nversion = )"[^"]+"/,
+    `$1"${version}"`,
+  )
+  if (nextCargoLock !== cargoLock) {
+    fs.writeFileSync(cargoLockFile, nextCargoLock)
+    console.log(`  synced src-tauri/Cargo.lock  ->  ${version}`)
+    changed = true
+  }
 }
 
 const lockFile = path.join(root, 'package-lock.json')
