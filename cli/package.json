@@ -7,6 +7,13 @@
     "bitpet": "index.js",
     "bitpet-hook": "bitpet-hook.js"
   },
+  "files": [
+    "index.js",
+    "bitpet-hook.js",
+    "hooks-guide.js",
+    "scripts/postinstall.js",
+    "assets/BitPet_aarch64.app.tar.gz"
+  ],
   "scripts": {
     "prepublishOnly": "cd .. && node scripts/sync-version.js",
     "postinstall": "node ./scripts/postinstall.js",

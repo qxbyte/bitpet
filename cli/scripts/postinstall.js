@@ -24,6 +24,7 @@ if (process.platform !== 'darwin') {
 
 const releaseArch = 'aarch64'
 const releaseBaseUrl = `https://github.com/${REPO}/releases/download/v${VERSION}`
+const bundledAppArchive = path.join(__dirname, '..', 'assets', `BitPet_${releaseArch}.app.tar.gz`)
 const tmpRoot = path.join(os.tmpdir(), `bitpet-install-${process.pid}`)
 const tmpExtract = path.join(tmpRoot, 'extract')
 const assets = [
@@ -227,6 +228,22 @@ async function main() {
   fs.mkdirSync(tmpRoot, { recursive: true })
 
   const errors = []
+  if (fs.existsSync(bundledAppArchive)) {
+    console.log(`📦 使用 npm 包内置 ${path.basename(bundledAppArchive)}`)
+    try {
+      await installFromTar({
+        type: 'tar',
+        name: path.basename(bundledAppArchive),
+        path: bundledAppArchive,
+      })
+      cleanUp()
+      return
+    } catch (e) {
+      errors.push(`${path.basename(bundledAppArchive)}: ${e.message}`)
+      console.log(`   内置 app 安装失败：${e.message}`)
+    }
+  }
+
   for (const asset of assets) {
     console.log(`⬇️  下载 ${asset.name}`)
     try {

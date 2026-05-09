@@ -121,9 +121,9 @@ jobs:
           prerelease: false
           args: --target ${{ matrix.target }}
 
-  # ── Job 2: Publish CLI to npm (independent of DMG builds) ──
+  # ── Job 2: Publish CLI to npm after release assets are uploaded ──
   publish-npm:
-    needs: [validate-release-branch]
+    needs: [validate-release-branch, build]
     runs-on: ubuntu-latest
 
     steps:
@@ -149,6 +149,7 @@ jobs:
           VER="${TAG#v}"
           node scripts/sync-version.js "$TAG"
           echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify npm token is configured
         run: |
@@ -168,6 +169,18 @@ jobs:
             echo "::error::$NAME@$VERSION already exists on npm. Bump the release version before publishing."
             exit 1
           fi
+
+      - name: Bundle BitPet.app release asset
+        run: |
+          mkdir -p cli/assets
+          gh release download "$TAG" \
+            --pattern "BitPet_aarch64.app.tar.gz" \
+            --dir cli/assets \
+            --clobber
+          test -s cli/assets/BitPet_aarch64.app.tar.gz
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
 
       - name: Verify CLI package
         working-directory: cli
