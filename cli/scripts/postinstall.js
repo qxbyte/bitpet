@@ -22,22 +22,22 @@ if (process.platform !== 'darwin') {
   process.exit(0)
 }
 
-const arch = process.arch === 'arm64' ? 'aarch64' : 'x64'
+const releaseArch = 'aarch64'
 const releaseBaseUrl = `https://github.com/${REPO}/releases/download/v${VERSION}`
 const tmpRoot = path.join(os.tmpdir(), `bitpet-install-${process.pid}`)
 const tmpExtract = path.join(tmpRoot, 'extract')
 const assets = [
   {
     type: 'tar',
-    name: `BitPet_${arch}.app.tar.gz`,
-    url: `${releaseBaseUrl}/BitPet_${arch}.app.tar.gz`,
-    path: path.join(tmpRoot, `BitPet_${arch}.app.tar.gz`),
+    name: `BitPet_${releaseArch}.app.tar.gz`,
+    url: `${releaseBaseUrl}/BitPet_${releaseArch}.app.tar.gz`,
+    path: path.join(tmpRoot, `BitPet_${releaseArch}.app.tar.gz`),
   },
   {
     type: 'dmg',
-    name: `BitPet_${VERSION}_${arch}.dmg`,
-    url: `${releaseBaseUrl}/BitPet_${VERSION}_${arch}.dmg`,
-    path: path.join(tmpRoot, `BitPet_${VERSION}_${arch}.dmg`),
+    name: `BitPet_${VERSION}_${releaseArch}.dmg`,
+    url: `${releaseBaseUrl}/BitPet_${VERSION}_${releaseArch}.dmg`,
+    path: path.join(tmpRoot, `BitPet_${VERSION}_${releaseArch}.dmg`),
   },
 ]
 

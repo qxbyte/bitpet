@@ -37,7 +37,7 @@ jobs:
 
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
-  # ── Job 1: Build DMG for each architecture ───────────────────
+  # ── Job 1: Build Apple Silicon DMG ───────────────────────────
   build:
     needs: validate-release-branch
     strategy:
