@@ -53,12 +53,12 @@ for (const file of targets) {
 }
 
 function replaceFirstPackageVersion(toml, version) {
-  const packageHeader = toml.match(/(^|\n)\[package\]\n/)
+  const packageHeader = toml.match(/(^|\r?\n)\[package\]\r?\n/)
   if (!packageHeader) throw new Error('Missing [package] section in Cargo.toml')
 
   const start = packageHeader.index + packageHeader[0].length
   const rest = toml.slice(start)
-  const nextSection = rest.search(/\n\[/)
+  const nextSection = rest.search(/\r?\n\[/)
   const end = nextSection === -1 ? toml.length : start + nextSection
   const before = toml.slice(0, start)
   const packageSection = toml.slice(start, end)
