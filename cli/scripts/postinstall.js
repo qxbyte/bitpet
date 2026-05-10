@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 // Runs automatically after `npm install -g bitpet`.
-// Downloads the matching BitPet.app bundle from GitHub Releases and installs it.
+// Downloads the matching BitPet desktop app from GitHub Releases and installs it.
 
 const https = require('https')
 const http  = require('http')
@@ -14,20 +14,22 @@ const REPO    = 'qxbyte/bitpet'
 const VERSION = require('../package.json').version
 const ALLOW_CLI_ONLY = process.env.BITPET_ALLOW_CLI_ONLY
 
-// Skip in dev/CI environments where the .app isn't needed.
+// Skip in dev/CI environments where the desktop app isn't needed.
 if (process.env.BITPET_SKIP_APP_INSTALL || process.env.CI) process.exit(0)
 
-if (process.platform !== 'darwin') {
-  console.log('ℹ️  BitPet app supports macOS only — CLI installed, app skipped.')
+if (!['darwin', 'win32'].includes(process.platform)) {
+  console.log(`ℹ️  BitPet app does not support ${process.platform} yet — CLI installed, app skipped.`)
   process.exit(0)
 }
 
 const releaseArch = 'aarch64'
+const windowsArch = process.arch === 'arm64' ? 'arm64' : 'x64'
 const releaseBaseUrl = `https://github.com/${REPO}/releases/download/v${VERSION}`
 const bundledAppArchive = path.join(__dirname, '..', 'assets', `BitPet_${releaseArch}.app.tar.gz`)
+const bundledWindowsInstaller = path.join(__dirname, '..', 'assets', `BitPet_${VERSION}_${windowsArch}-setup.exe`)
 const tmpRoot = path.join(os.tmpdir(), `bitpet-install-${process.pid}`)
 const tmpExtract = path.join(tmpRoot, 'extract')
-const assets = [
+const macAssets = [
   {
     type: 'tar',
     name: `BitPet_${releaseArch}.app.tar.gz`,
@@ -39,6 +41,20 @@ const assets = [
     name: `BitPet_${VERSION}_${releaseArch}.dmg`,
     url: `${releaseBaseUrl}/BitPet_${VERSION}_${releaseArch}.dmg`,
     path: path.join(tmpRoot, `BitPet_${VERSION}_${releaseArch}.dmg`),
+  },
+]
+const windowsAssets = [
+  {
+    type: 'exe',
+    name: `BitPet_${VERSION}_${windowsArch}-setup.exe`,
+    url: `${releaseBaseUrl}/BitPet_${VERSION}_${windowsArch}-setup.exe`,
+    path: path.join(tmpRoot, `BitPet_${VERSION}_${windowsArch}-setup.exe`),
+  },
+  {
+    type: 'exe',
+    name: `BitPet_${VERSION}_${windowsArch}_setup.exe`,
+    url: `${releaseBaseUrl}/BitPet_${VERSION}_${windowsArch}_setup.exe`,
+    path: path.join(tmpRoot, `BitPet_${VERSION}_${windowsArch}_setup.exe`),
   },
 ]
 
@@ -220,14 +236,16 @@ async function installFromDmg(asset) {
   }
 }
 
-// ── Main ──────────────────────────────────────────────────────
+async function installFromWindowsInstaller(asset) {
+  const res = run(asset.path, ['/S'], { stdio: 'inherit' })
+  if (res.status !== 0) {
+    throw new Error(`installer exited ${res.status}`)
+  }
+  console.log('✅ BitPet 已安装')
+  console.log('   运行 `bitpet init` 启动宠物\n')
+}
 
-async function main() {
-  console.log(`\n🐾 BitPet v${VERSION} — 正在安装桌面应用`)
-  cleanUp()
-  fs.mkdirSync(tmpRoot, { recursive: true })
-
-  const errors = []
+async function installMacApp(errors) {
   if (fs.existsSync(bundledAppArchive)) {
     console.log(`📦 使用 npm 包内置 ${path.basename(bundledAppArchive)}`)
     try {
@@ -236,31 +254,81 @@ async function main() {
         name: path.basename(bundledAppArchive),
         path: bundledAppArchive,
       })
-      cleanUp()
-      return
+      return true
     } catch (e) {
       errors.push(`${path.basename(bundledAppArchive)}: ${e.message}`)
       console.log(`   内置 app 安装失败：${e.message}`)
     }
   }
 
-  for (const asset of assets) {
+  for (const asset of macAssets) {
     console.log(`⬇️  下载 ${asset.name}`)
     try {
       await download(asset.url, asset.path)
       await sleep(800)
       if (asset.type === 'tar') await installFromTar(asset)
       else await installFromDmg(asset)
-      cleanUp()
-      return
+      return true
     } catch (e) {
       errors.push(`${asset.name}: ${e.message}`)
       console.log(`   ${asset.name} 安装失败：${e.message}`)
     }
   }
 
+  return false
+}
+
+async function installWindowsApp(errors) {
+  if (fs.existsSync(bundledWindowsInstaller)) {
+    console.log(`📦 使用 npm 包内置 ${path.basename(bundledWindowsInstaller)}`)
+    try {
+      await installFromWindowsInstaller({
+        type: 'exe',
+        name: path.basename(bundledWindowsInstaller),
+        path: bundledWindowsInstaller,
+      })
+      return true
+    } catch (e) {
+      errors.push(`${path.basename(bundledWindowsInstaller)}: ${e.message}`)
+      console.log(`   内置 installer 安装失败：${e.message}`)
+    }
+  }
+
+  for (const asset of windowsAssets) {
+    console.log(`⬇️  下载 ${asset.name}`)
+    try {
+      await download(asset.url, asset.path)
+      await sleep(800)
+      await installFromWindowsInstaller(asset)
+      return true
+    } catch (e) {
+      errors.push(`${asset.name}: ${e.message}`)
+      console.log(`   ${asset.name} 安装失败：${e.message}`)
+    }
+  }
+
+  return false
+}
+
+// ── Main ──────────────────────────────────────────────────────
+
+async function main() {
+  console.log(`\n🐾 BitPet v${VERSION} — 正在安装桌面应用`)
   cleanUp()
-  failInstall('\n❌ 自动安装 BitPet.app 失败', [
+  fs.mkdirSync(tmpRoot, { recursive: true })
+
+  const errors = []
+  const installed = process.platform === 'win32'
+    ? await installWindowsApp(errors)
+    : await installMacApp(errors)
+
+  if (installed) {
+    cleanUp()
+    return
+  }
+
+  cleanUp()
+  failInstall('\n❌ 自动安装 BitPet 桌面应用失败', [
     ...errors,
     `请检查网络后重试：bitpet install-app`,
     `Release: https://github.com/${REPO}/releases/tag/v${VERSION}`,

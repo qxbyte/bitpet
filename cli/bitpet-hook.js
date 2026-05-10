@@ -9,12 +9,11 @@
  *   bitpet-hook session-end <tool>
  */
 
-const net = require('net')
 const os = require('os')
 const path = require('path')
 const fs = require('fs')
+const { sendMessage } = require('./ipc')
 
-const SOCKET = path.join(os.tmpdir(), 'bitpet.sock')
 const MAX_DELTA = 500  // truncate hook payloads to 500 chars
 
 // Per-session skip flags: written when /pet command detected, prevents
@@ -36,15 +35,7 @@ function clearSkip(sid) {
 }
 
 function send(msg) {
-  return new Promise((resolve) => {
-    const client = net.createConnection(SOCKET, () => {
-      client.write(JSON.stringify(msg) + '\n')
-      client.end()
-      resolve()
-    })
-    client.on('error', () => resolve())  // silent fail — pet not running
-    client.setTimeout(800, () => { client.destroy(); resolve() })
-  })
+  return sendMessage(msg, { timeoutMs: 800 })
 }
 
 async function main() {

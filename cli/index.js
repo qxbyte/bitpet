@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 'use strict'
 
-const net = require('net')
 const os = require('os')
 const path = require('path')
 const fs = require('fs')
 const { spawn } = require('child_process')
 const { GUIDES } = require('./hooks-guide')
+const { sendMessage, isDaemonRunning } = require('./ipc')
 
-const SOCKET = path.join(os.tmpdir(), 'bitpet.sock')  // macOS: /var/folders/.../T/bitpet.sock
 const COMMANDS_DIR = path.join(os.homedir(), '.claude', 'commands')
 const CMD_FILE = path.join(COMMANDS_DIR, 'pet.md')
 const CLAUDE_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json')
@@ -31,35 +30,7 @@ const BITPET_HOOK_ENTRIES = [
 // ── Socket helpers ────────────────────────────────────────────
 
 function sendCmd(action) {
-  return new Promise((resolve, reject) => {
-    const client = net.createConnection(SOCKET, () => {
-      client.write(JSON.stringify({ type: 'cmd', action }) + '\n')
-    })
-    let buf = ''
-    client.on('data', (d) => {
-      buf += d.toString()
-      // Resolve as soon as we receive a complete newline-terminated JSON line.
-      const line = buf.split('\n').find(l => l.trim())
-      if (line) {
-        client.destroy()
-        try { resolve(JSON.parse(line.trim())) }
-        catch { resolve({ ok: true }) }
-      }
-    })
-    client.on('error', reject)
-    client.setTimeout(3000, () => { client.destroy(); reject(new Error('timeout')) })
-  })
-}
-
-function isDaemonRunning() {
-  return new Promise((resolve) => {
-    const client = net.createConnection(SOCKET, () => {
-      client.destroy()
-      resolve(true)
-    })
-    client.on('error', () => resolve(false))
-    client.setTimeout(500, () => { client.destroy(); resolve(false) })
-  })
+  return sendMessage({ type: 'cmd', action }, { expectResponse: true, timeoutMs: 3000 })
 }
 
 // ── Install CLI symlinks from .app bundle ─────────────────────
@@ -68,6 +39,12 @@ function isDaemonRunning() {
 // are automatically picked up with no extra step.
 
 function cmdInstallCli() {
+  if (process.platform === 'win32') {
+    console.log('✅ Windows 上的 CLI 已由 npm bin 安装，无需创建 .app 符号链接')
+    console.log('   如命令不可用，请确认 npm 全局 bin 目录已加入 PATH。')
+    return
+  }
+
   // Locate the Resources/cli directory inside the running .app bundle.
   // __filename when called from inside the bundle:
   //   /Applications/BitPet.app/Contents/Resources/cli/index.js
@@ -262,13 +239,23 @@ async function cmdInit() {
   // Locate runnable binary or .app bundle.
   const projectRoot = path.join(__dirname, '..')
   const isSourceCheckout = fs.existsSync(path.join(projectRoot, 'src-tauri', 'tauri.conf.json'))
+  const exeName = process.platform === 'win32' ? 'bitpet.exe' : 'bitpet'
   const appBundle   = path.join(projectRoot, 'src-tauri', 'target', 'release', 'bundle', 'macos', 'BitPet.app')
-  const debugBin    = path.join(projectRoot, 'src-tauri', 'target', 'debug', 'bitpet')
-  const releaseBin  = path.join(projectRoot, 'src-tauri', 'target', 'release', 'bitpet')
-  const installedApps = [
+  const debugBin    = path.join(projectRoot, 'src-tauri', 'target', 'debug', exeName)
+  const releaseBin  = path.join(projectRoot, 'src-tauri', 'target', 'release', exeName)
+  const macInstalledApps = [
     '/Applications/BitPet.app',
     path.join(os.homedir(), 'Applications', 'BitPet.app'),
   ]
+  const windowsInstalledApps = [
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs', 'BitPet', 'BitPet.exe'),
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs', 'BitPet', 'bitpet.exe'),
+    process.env.ProgramFiles && path.join(process.env.ProgramFiles, 'BitPet', 'BitPet.exe'),
+    process.env.ProgramFiles && path.join(process.env.ProgramFiles, 'BitPet', 'bitpet.exe'),
+    process.env['ProgramFiles(x86)'] && path.join(process.env['ProgramFiles(x86)'], 'BitPet', 'BitPet.exe'),
+    process.env['ProgramFiles(x86)'] && path.join(process.env['ProgramFiles(x86)'], 'BitPet', 'bitpet.exe'),
+  ].filter(Boolean)
+  const installedApps = process.platform === 'win32' ? windowsInstalledApps : macInstalledApps
   const findInstalledApp = () => installedApps.find(app => fs.existsSync(app))
   let installedApp = findInstalledApp()
 
@@ -279,8 +266,10 @@ async function cmdInit() {
     installedApp = findInstalledApp()
   }
 
-  if (installedApp) {
+  if (installedApp && process.platform === 'darwin') {
     child = spawn('open', [installedApp], { detached: true, stdio: 'ignore' })
+  } else if (installedApp) {
+    child = spawn(installedApp, [], { detached: true, stdio: 'ignore' })
   } else if (isSourceCheckout && fs.existsSync(appBundle)) {
     child = spawn('open', [appBundle], { detached: true, stdio: 'ignore' })
   } else if (isSourceCheckout && fs.existsSync(releaseBin)) {
@@ -304,7 +293,8 @@ async function cmdInit() {
     }
     child = spawn(debugBin, [], { detached: true, stdio: 'ignore' })
   } else {
-    console.error('❌ 找不到 BitPet.app')
+    const appName = process.platform === 'win32' ? 'BitPet.exe' : 'BitPet.app'
+    console.error(`❌ 找不到 ${appName}`)
     console.error('   请检查网络后运行：bitpet install-app')
     process.exit(1)
   }

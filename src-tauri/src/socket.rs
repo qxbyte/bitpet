@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{UnixListener, UnixStream};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 
 use crate::state::StateManager;
 
@@ -26,16 +24,27 @@ pub struct CmdResponse {
     pub error: Option<String>,
 }
 
-pub fn socket_path() -> PathBuf {
-    let tmp = std::env::temp_dir();
-    tmp.join("bitpet.sock")
+#[cfg(unix)]
+pub fn ipc_endpoint() -> String {
+    std::env::temp_dir()
+        .join("bitpet.sock")
+        .to_string_lossy()
+        .into_owned()
 }
 
+#[cfg(windows)]
+pub fn ipc_endpoint() -> String {
+    r"\\.\pipe\bitpet".to_string()
+}
+
+#[cfg(unix)]
 pub async fn start_socket_server(
     state: Arc<StateManager>,
     event_tx: tokio::sync::mpsc::UnboundedSender<ServerEvent>,
 ) {
-    let path = socket_path();
+    use tokio::net::UnixListener;
+
+    let path = std::path::PathBuf::from(ipc_endpoint());
     // Clean up stale socket file.
     let _ = tokio::fs::remove_file(&path).await;
 
@@ -48,11 +57,8 @@ pub async fn start_socket_server(
     };
 
     // Set socket permissions to 0600 (owner rw only).
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
-    }
+    use std::os::unix::fs::PermissionsExt;
+    let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
 
     loop {
         match listener.accept().await {
@@ -68,12 +74,46 @@ pub async fn start_socket_server(
     }
 }
 
-async fn handle_connection(
-    stream: UnixStream,
+#[cfg(windows)]
+pub async fn start_socket_server(
     state: Arc<StateManager>,
     event_tx: tokio::sync::mpsc::UnboundedSender<ServerEvent>,
 ) {
-    let (reader, mut writer) = stream.into_split();
+    use tokio::net::windows::named_pipe::ServerOptions;
+
+    let pipe_name = ipc_endpoint();
+
+    loop {
+        let server = match ServerOptions::new().create(&pipe_name) {
+            Ok(server) => server,
+            Err(e) => {
+                eprintln!("[BitPet] failed to create named pipe: {e}");
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                continue;
+            }
+        };
+
+        match server.connect().await {
+            Ok(()) => {
+                let state = Arc::clone(&state);
+                let tx = event_tx.clone();
+                tokio::spawn(handle_connection(server, state, tx));
+            }
+            Err(e) => {
+                eprintln!("[BitPet] named pipe connect error: {e}");
+            }
+        }
+    }
+}
+
+async fn handle_connection<S>(
+    stream: S,
+    state: Arc<StateManager>,
+    event_tx: tokio::sync::mpsc::UnboundedSender<ServerEvent>,
+) where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let (reader, mut writer) = tokio::io::split(stream);
     let mut lines = BufReader::new(reader).lines();
 
     let rate_limit = Duration::from_millis(100); // max 10 delta msgs/sec

@@ -36,13 +36,21 @@ fn now_ts() -> i64 {
 }
 
 fn state_path() -> PathBuf {
-    let home = dirs_next();
-    home.join(".config").join("bitpet").join("state.json")
+    config_dir().join("bitpet").join("state.json")
 }
 
-fn dirs_next() -> PathBuf {
-    std::env::var("HOME")
+#[cfg(target_os = "windows")]
+fn config_dir() -> PathBuf {
+    std::env::var("APPDATA")
         .map(PathBuf::from)
+        .or_else(|_| std::env::var("USERPROFILE").map(|home| PathBuf::from(home).join(".bitpet")))
+        .unwrap_or_else(|_| std::env::temp_dir())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn config_dir() -> PathBuf {
+    std::env::var("HOME")
+        .map(|home| PathBuf::from(home).join(".config"))
         .unwrap_or_else(|_| PathBuf::from("/tmp"))
 }
 

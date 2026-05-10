@@ -15,6 +15,10 @@ permissions:
 env:
   RELEASE_BRANCH: master
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   validate-release-branch:
     runs-on: ubuntu-latest
@@ -37,22 +41,62 @@ jobs:
 
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
-  # ── Job 1: Build Apple Silicon DMG ───────────────────────────
-  build:
+  prepare-release:
     needs: validate-release-branch
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release-event.outputs.tag || steps.dispatch.outputs.tag }}
+      release_id: ${{ steps.release-event.outputs.release_id || steps.dispatch.outputs.release_id }}
+    steps:
+      - name: Use published release
+        id: release-event
+        if: github.event_name == 'release'
+        run: |
+          echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          echo "release_id=${{ github.event.release.id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release for workflow dispatch
+        id: dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          V="${{ github.event.inputs.version }}"
+          TAG="v${V#v}"
+          gh release create "$TAG" \
+            --target "${{ needs.validate-release-branch.outputs.ref }}" \
+            --title "BitPet $TAG" \
+            --notes "Install or update via npm:
+
+          \`\`\`bash
+          npm install -g bitpet   # first install
+          npm update -g bitpet    # update
+          \`\`\`" \
+            --latest
+          RELEASE_ID=$(gh release view "$TAG" --json databaseId -q .databaseId)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Job 1: Build desktop release assets ──────────────────────
+  build:
+    needs: [validate-release-branch, prepare-release]
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest   # Apple Silicon (M-series), Rosetta 2 covers Intel Macs
             target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc --bundles nsis
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || needs.validate-release-branch.outputs.ref }}
+          ref: ${{ needs.prepare-release.outputs.tag }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -85,51 +129,24 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      # release event → attach DMG to the release created via GitHub UI
+      # Attach platform assets to the release created via GitHub UI or workflow_dispatch.
       - name: Build and attach to GitHub release
-        if: github.event_name == 'release'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          releaseId: ${{ github.event.release.id }}
-          args: --target ${{ matrix.target }}
-
-      # workflow_dispatch → create a new release programmatically
-      - name: Resolve tag name
-        id: ver
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          V="${{ github.event.inputs.version }}"
-          echo "tag=v${V#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and create release
-        if: github.event_name == 'workflow_dispatch'
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ steps.ver.outputs.tag }}
-          releaseName: 'BitPet ${{ steps.ver.outputs.tag }}'
-          releaseBody: |
-            Install or update via npm:
-            ```bash
-            npm install -g bitpet   # first install
-            npm update -g bitpet    # update
-            ```
-          releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
+          args: ${{ matrix.args }}
 
   # ── Job 2: Publish CLI to npm after release assets are uploaded ──
   publish-npm:
-    needs: [validate-release-branch, build]
+    needs: [validate-release-branch, prepare-release, build]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || needs.validate-release-branch.outputs.ref }}
+          ref: ${{ needs.prepare-release.outputs.tag }}
 
       - name: Setup Node.js with npm registry
         uses: actions/setup-node@v4
@@ -141,10 +158,9 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
+            TAG="${{ needs.prepare-release.outputs.tag }}"
           else
-            V="${{ github.event.inputs.version }}"
-            TAG="v${V#v}"
+            TAG="${{ needs.prepare-release.outputs.tag }}"
           fi
           VER="${TAG#v}"
           node scripts/sync-version.js "$TAG"
@@ -170,7 +186,7 @@ jobs:
             exit 1
           fi
 
-      - name: Bundle BitPet.app release asset
+      - name: Bundle BitPet release assets
         run: |
           mkdir -p cli/assets
           gh release download "$TAG" \
@@ -178,6 +194,11 @@ jobs:
             --dir cli/assets \
             --clobber
           test -s cli/assets/BitPet_aarch64.app.tar.gz
+          gh release download "$TAG" \
+            --pattern "BitPet_*setup.exe" \
+            --dir cli/assets \
+            --clobber
+          test -n "$(find cli/assets -maxdepth 1 -name 'BitPet_*setup.exe' -print -quit)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
