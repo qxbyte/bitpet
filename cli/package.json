@@ -9,10 +9,13 @@
   },
   "files": [
     "index.js",
+    "ipc.js",
     "bitpet-hook.js",
     "hooks-guide.js",
     "scripts/postinstall.js",
-    "assets/BitPet_aarch64.app.tar.gz"
+    "assets/BitPet_aarch64.app.tar.gz",
+    "assets/BitPet_*_x64-setup.exe",
+    "assets/BitPet_*_arm64-setup.exe"
   ],
   "scripts": {
     "prepublishOnly": "cd .. && node scripts/sync-version.js",
@@ -22,9 +25,6 @@
   "engines": {
     "node": ">=18"
   },
-  "os": [
-    "darwin"
-  ],
   "keywords": [
     "claude-code",
     "desktop-pet",
